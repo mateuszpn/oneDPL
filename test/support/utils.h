@@ -82,7 +82,11 @@ issue_error_message(::std::stringstream& outstr)
 {
     outstr << ::std::endl;
     ::std::cerr << outstr.str();
+#ifndef REPEAT_FAILED_TEST
     ::std::exit(EXIT_FAILURE);
+#else
+    throw RepeatFailedTestException(outstr.str().c_str());
+#endif
 }
 
 inline void
