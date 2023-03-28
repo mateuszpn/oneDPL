@@ -49,7 +49,7 @@ int run_test(sycl::queue q) {
       sycl::accessor a_(a_buf, h, sycl::read_only);
       sycl::accessor b_(b_buf, h, sycl::read_only);
       sycl::accessor c_(c_buf, h, sycl::write_only);
-      h.parallel_for(num_items, [=](auto j) {
+      h.parallel_for<class sum1>(num_items, [=](auto j) {
         c_[j] += a_[j] + b_[j];
       });
     });
@@ -58,7 +58,7 @@ int run_test(sycl::queue q) {
       sycl::accessor a_(a_buf, h, sycl::read_only);
       sycl::accessor b_(b_buf, h, sycl::read_only);
       sycl::accessor c_(c_buf, h, sycl::write_only);
-      h.parallel_for(num_items, [=](auto j) {
+      h.parallel_for<class sum2>(num_items, [=](auto j) {
         c_[j] += a_[j] + b_[j];
       });
     }).wait();
