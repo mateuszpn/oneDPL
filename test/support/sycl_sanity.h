@@ -22,6 +22,7 @@
 #include <ostream>
 #include <vector>
 #include <CL/sycl.hpp>
+#include "support/utils.h"
 
 static inline int run_sycl_sanity_test(sycl::queue q) {
   const int num_items = 100;
@@ -39,7 +40,7 @@ static inline int run_sycl_sanity_test(sycl::queue q) {
       sycl::accessor a_(a_buf, h, sycl::read_only);
       sycl::accessor b_(b_buf, h, sycl::read_only);
       sycl::accessor c_(c_buf, h, sycl::write_only);
-      h.parallel_for<class Sum>(num_items, [=](auto j) {
+      h.parallel_for<TestUtils::unique_kernel_name<class sum3, TestUtils::uniq_kernel_index<alloc_type>()>>(num_items, [=](auto j) {
         c_[j] += a_[j] + b_[j];
       });
     });
@@ -48,7 +49,7 @@ static inline int run_sycl_sanity_test(sycl::queue q) {
       sycl::accessor a_(a_buf, h, sycl::read_only);
       sycl::accessor b_(b_buf, h, sycl::read_only);
       sycl::accessor c_(c_buf, h, sycl::write_only);
-      h.parallel_for<class Sum>(num_items, [=](auto j) {
+      h.parallel_for<TestUtils::unique_kernel_name<class sum4, TestUtils::uniq_kernel_index<alloc_type>()>>(num_items, [=](auto j) {
         c_[j] += a_[j] + b_[j];
       });
     }).wait();
