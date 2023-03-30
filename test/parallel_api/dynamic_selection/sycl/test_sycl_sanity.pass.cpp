@@ -23,7 +23,7 @@
 #include <ostream>
 #include <vector>
 #include <CL/sycl.hpp>
-#include "support/utils.h"
+#include "support/sycl_sanity.h"
 
 int run_test(sycl::queue q) {
   const int num_items = 1000000;
