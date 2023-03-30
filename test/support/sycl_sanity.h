@@ -22,7 +22,23 @@
 #include <ostream>
 #include <vector>
 #include <CL/sycl.hpp>
-#include "support/utils.h"
+
+//TODO: Source from oneDPL
+namespace TestUtils
+{
+  template <sycl::usm::alloc alloc_type>
+  constexpr ::std::size_t
+  uniq_kernel_index()
+  {
+    return static_cast<typename ::std::underlying_type<sycl::usm::alloc>::type>(alloc_type);
+  }
+
+  template <typename Op, ::std::size_t CallNumber>
+  struct unique_kernel_name;
+
+  template <typename Policy, int idx>
+  using new_kernel_name = unique_kernel_name<typename ::std::decay<Policy>::type, idx>;
+}
 
 static inline int run_sycl_sanity_test(sycl::queue q) {
   const int num_items = 100;
