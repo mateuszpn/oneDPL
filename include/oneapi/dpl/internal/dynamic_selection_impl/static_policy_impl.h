@@ -60,6 +60,7 @@ namespace experimental {
           return selection_handle_t{universe_[0]};
       }
       //return {};
+      selection_handle_t{};
     }
 
     template<typename Function, typename ...Args>
