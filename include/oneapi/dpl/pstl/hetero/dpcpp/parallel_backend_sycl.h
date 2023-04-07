@@ -515,7 +515,7 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
                     // This kernel is only launched for sizes less than 2^16
                     const ::std::uint16_t __item_id = __self_item.get_local_linear_id();
                     const ::std::uint16_t __subgroup_id = __subgroup.get_group_id();
-                    const ::std::uint16_t __subgroup_size = __subgroup.get_local_linear_range();
+                    const ::std::uint16_t __subgroup_size = __subgroup.get_local_range()[0];
 
 #if _ONEDPL_SYCL_SUB_GROUP_LOAD_STORE_PRESENT
                     constexpr bool __can_use_subgroup_load_store = _IsFullGroup;
