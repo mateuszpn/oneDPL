@@ -184,86 +184,32 @@ struct __init_processing
 // transform_reduce
 //------------------------------------------------------------------------
 
-// TODO: Think about unifying "transform_reduce" structures since their code is very similar.
-template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2, typename _Tp>
-struct transform_reduce_seq
-{
-    _Operation1 __binary_op;
-    _Operation2 __unary_op;
-
-    template <typename _Size, typename... _Acc>
-    _Tp
-    operator()(const _Size __n, const _Acc&... __acc) const
-    {
-        _Tp __result = __unary_op(0, __acc...);
-        // Add neighbour to the current __result
-        for (_Size __i = 1; __i < __n; ++__i)
-            __result = __binary_op(__result, __unary_op(__i, __acc...));
-        return __result;
-    }
-};
-
-template <typename _ExecutionPolicy, ::std::size_t __iters_per_work_item, typename _Operation1, typename _Operation2>
-struct transform_reduce_known
-{
-    _Operation1 __binary_op;
-    _Operation2 __unary_op;
-
-    template <typename _Size, typename _AccLocal, typename... _Acc>
-    void
-    operator()(const ::std::uint16_t __local_id, const _Size __n,
-               const ::std::size_t /* unused __iters_per_work_item */, const ::std::size_t __global_id,
-               const ::std::size_t __global_offset, _AccLocal& __local_mem, const _Acc&... __acc) const
-    {
-        const _Size __adjusted_global_id = __global_offset + __iters_per_work_item * __global_id;
-        const _Size __adjusted_n = __global_offset + __n;
-        // Add neighbour to the current __local_mem
-        if (__adjusted_global_id + __iters_per_work_item < __adjusted_n)
-        {
-            // Keep these statements in the same scope to allow for better memory alignment
-            typename _AccLocal::value_type __res = __unary_op(__adjusted_global_id, __acc...);
-            _ONEDPL_PRAGMA_UNROLL
-            for (_Size __i = 1; __i < __iters_per_work_item; ++__i)
-                __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i, __acc...));
-            __local_mem[__local_id] = __res;
-        }
-        else if (__adjusted_global_id < __adjusted_n)
-        {
-            const _Size __items_to_process = __adjusted_n - __adjusted_global_id;
-            // Keep these statements in the same scope to allow for better memory alignment
-            typename _AccLocal::value_type __res = __unary_op(__adjusted_global_id, __acc...);
-            for (_Size __i = 1; __i < __items_to_process; ++__i)
-                __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i, __acc...));
-            __local_mem[__local_id] = __res;
-        }
-    }
-};
-
 template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2>
-struct transform_reduce_unknown
+struct transform_reduce
 {
     _Operation1 __binary_op;
     _Operation2 __unary_op;
 
-    template <typename _Size, typename _AccLocal, typename... _Acc>
+    template <typename _NDItemId, typename _Size, typename _AccLocal, typename... _Acc>
     void
-    operator()(const ::std::uint16_t __local_id, const _Size __n, const ::std::size_t __iters_per_work_item,
-               const ::std::size_t __global_id, const ::std::size_t __global_offset, _AccLocal& __local_mem,
-               const _Acc&... __acc) const
+    operator()(const _NDItemId __item, const _Size __n, const ::std::size_t __work_group_size,
+               const ::std::size_t __n_groups, _AccLocal& __local_mem, const _Acc&... __acc) const
     {
-        ::std::size_t __adjusted_global_id = __global_offset + __iters_per_work_item * __global_id;
-        _Size __adjusted_n = __global_offset + __n;
-        if (__adjusted_global_id < __adjusted_n)
+        const ::std::size_t __local_idx = __item.get_local_id(0);
+        const ::std::size_t __group_idx = __item.get_group(0);
+        const ::std::size_t __grid_size = __work_group_size * __n_groups;
+
+        ::std::size_t __adjusted_global_id = __group_idx * __work_group_size + __local_idx;
+        if (__adjusted_global_id < __n)
         {
             typename _AccLocal::value_type __res = __unary_op(__adjusted_global_id, __acc...);
-            // Add neighbour to the current __local_mem
-            for (_Size __i = 1; __i < __iters_per_work_item; ++__i)
+            __adjusted_global_id += __grid_size;
+            while (__adjusted_global_id < __n)
             {
-                ::std::size_t __shifted_id = __adjusted_global_id + __i;
-                if (__shifted_id < __adjusted_n)
-                    __res = __binary_op(__res, __unary_op(__shifted_id, __acc...));
+                __res = __binary_op(__res, __unary_op(__adjusted_global_id, __acc...));
+                __adjusted_global_id += __grid_size;
             }
-            __local_mem[__local_id] = __res;
+            __local_mem[__local_idx] = __res;
         }
     }
 };
@@ -275,27 +221,29 @@ struct reduce_over_group
     _BinaryOperation1 __bin_op1;
 
     // Reduce on local memory with subgroups
-    template <typename _NDItemId, typename _GlobalIdx, typename _Size, typename _AccLocal>
+    template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _GlobalIdx __global_idx, const _Size __n, _AccLocal& __local_mem,
+    reduce_impl(const _NDItemId __item_id, const _Size __n, _AccLocal& __local_mem,
                 std::true_type /*has_known_identity*/) const
     {
-        auto __local_id = __item_id.get_local_id(0);
+        auto __local_idx = __item_id.get_local_id(0);
+        auto __global_idx = __item_id.get_global_id(0);
         if (__global_idx >= __n)
         {
             // Fill the rest of local buffer with init elements so each of inclusive_scan method could correctly work
             // for each work-item in sub-group
-            __local_mem[__local_id] = __known_identity<_BinaryOperation1, _Tp>;
+            __local_mem[__local_idx] = __known_identity<_BinaryOperation1, _Tp>;
         }
-        return __dpl_sycl::__reduce_over_group(__item_id.get_group(), __local_mem[__local_id], __bin_op1);
+        return __dpl_sycl::__reduce_over_group(__item_id.get_group(), __local_mem[__local_idx], __bin_op1);
     }
 
-    template <typename _NDItemId, typename _GlobalIdx, typename _Size, typename _AccLocal>
+    template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _GlobalIdx __global_idx, const _Size __n, _AccLocal& __local_mem,
+    reduce_impl(const _NDItemId __item_id, const _Size __n, _AccLocal& __local_mem,
                 std::false_type /*has_known_identity*/) const
     {
         auto __local_idx = __item_id.get_local_id(0);
+        auto __global_idx = __item_id.get_global_id(0);
         auto __group_size = __item_id.get_local_range().size();
 
         auto __k = 1;
@@ -313,11 +261,11 @@ struct reduce_over_group
         return __local_mem[__local_idx];
     }
 
-    template <typename _NDItemId, typename _GlobalIdx, typename _Size, typename _AccLocal>
+    template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    operator()(const _NDItemId __item_id, const _GlobalIdx __global_idx, const _Size __n, _AccLocal& __local_mem) const
+    operator()(const _NDItemId __item_id, const _Size __n, _AccLocal& __local_mem) const
     {
-        return reduce_impl(__item_id, __global_idx, __n, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
+        return reduce_impl(__item_id, __n, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
     }
 
     template <typename _InitType, typename _Result>
