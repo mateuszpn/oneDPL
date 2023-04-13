@@ -387,10 +387,8 @@ __pattern_min_element(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __
     auto __identity_init_fn = __acc_handler_minelement<_ReduceValueType>{};
     auto __identity_reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
         using ::std::get;
-        if (__comp(get<1>(__b), get<1>(__a)))
-        {
+        if (__comp(get<1>(__b), get<1>(__a)) || (!__comp(get<1>(__a), get<1>(__b)) && get<0>(__b) < get<0>(__a)))
             return __b;
-        }
         return __a;
     };
 
@@ -399,7 +397,8 @@ __pattern_min_element(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, decltype(__identity_reduce_fn),
-                                                                       decltype(__identity_init_fn)>(
+                                                                       decltype(__identity_init_fn),
+                                                                       std::true_type /*is_commutative*/>(
             ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
             unseq_backend::__no_init_value{}, // no initial value
             __buf.all_view())
@@ -445,8 +444,8 @@ __pattern_minmax_element(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    auto __ret = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, _ReduceFnType,
-                                                                                decltype(__identity_init_fn)>(
+    auto __ret = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<
+                     _ReduceValueType, _ReduceFnType, decltype(__identity_init_fn), std::true_type /*is_commutative*/>(
                      ::std::forward<_ExecutionPolicy>(__exec), _ReduceFnType{__comp}, __identity_init_fn,
                      unseq_backend::__no_init_value{}, // no initial value
                      __buf.all_view())
@@ -539,10 +538,11 @@ __pattern_count(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, 
     auto __buf = __keep(__first, __last);
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<
-               _ReduceValueType, decltype(__identity_reduce_fn), decltype(__identity_init_fn)>(
-               ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
-               unseq_backend::__no_init_value{}, // no initial value
-               __buf.all_view())
+               _ReduceValueType, decltype(__identity_reduce_fn), decltype(__identity_init_fn),
+               std::true_type /*is_commutative*/>(::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn,
+                                                  __identity_init_fn,
+                                                  unseq_backend::__no_init_value{}, // no initial value
+                                                  __buf.all_view())
         .get();
 }
 
@@ -1018,7 +1018,8 @@ __pattern_is_partitioned(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator
     using _ReduceValueType = _IsPartitionedReduceType;
 
     auto __identity_init_fn = acc_handler_is_partitioned<_Predicate>{__predicate};
-    auto __identity_reduce_fn = [](_ReduceValueType __val1, _ReduceValueType __val2) -> _ReduceValueType {
+    auto __identity_reduce_fn = [](_ReduceValueType __val1, _ReduceValueType __val2) -> _ReduceValueType
+    {
         _ReduceValueType __table[] = {__broken,     __broken,     __broken,     __broken, __broken,    __all_true,
                                       __true_false, __true_false, __broken,     __broken, __all_false, __broken,
                                       __broken,     __broken,     __true_false, __broken};
@@ -1030,7 +1031,8 @@ __pattern_is_partitioned(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator
 
     auto __res =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, decltype(__identity_reduce_fn),
-                                                                       decltype(__identity_init_fn)>(
+                                                                       decltype(__identity_init_fn),
+                                                                       std::false_type /*is_commutative*/>(
             ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
             unseq_backend::__no_init_value{}, // no initial value
             __buf.all_view())
@@ -1299,7 +1301,8 @@ __pattern_lexicographical_compare(_ExecutionPolicy&& __exec, _Iterator1 __first1
     using _ReduceValueType = int32_t;
 
     auto __identity_init_fn = acc_handler_lexicographical_compare<_Compare, _ReduceValueType>{__comp};
-    auto __identity_reduce_fn = [](_ReduceValueType __a, _ReduceValueType __b) -> _ReduceValueType {
+    auto __identity_reduce_fn = [](_ReduceValueType __a, _ReduceValueType __b) -> _ReduceValueType
+    {
         bool __is_mismatched = __a != 0;
         return __a * __is_mismatched + __b * !__is_mismatched;
     };
@@ -1314,7 +1317,8 @@ __pattern_lexicographical_compare(_ExecutionPolicy&& __exec, _Iterator1 __first1
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, decltype(__identity_reduce_fn),
-                                                                       decltype(__identity_init_fn)>(
+                                                                       decltype(__identity_init_fn),
+                                                                       std::true_type /*is_commutative*/>(
             ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
             unseq_backend::__no_init_value{}, // no initial value
             __buf1.all_view(), __buf2.all_view())

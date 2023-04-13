@@ -316,10 +316,11 @@ __pattern_count(_ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __predicat
     auto __identity_reduce_fn = ::std::plus<_ReduceValueType>{};
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<
-               _ReduceValueType, decltype(__identity_reduce_fn), decltype(__identity_init_fn)>(
-               ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
-               unseq_backend::__no_init_value{}, // no initial value
-               ::std::forward<_Range>(__rng))
+               _ReduceValueType, decltype(__identity_reduce_fn), decltype(__identity_init_fn),
+               std::true_type /*is_commutative*/>(::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn,
+                                                  __identity_init_fn,
+                                                  unseq_backend::__no_init_value{}, // no initial value
+                                                  ::std::forward<_Range>(__rng))
         .get();
 }
 
@@ -548,14 +549,16 @@ __pattern_min_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp
     using _ReduceValueType = oneapi::dpl::__internal::tuple<_IndexValueType, _IteratorValueType>;
 
     auto __identity_init_fn = __acc_handler_minelement<_ReduceValueType>{};
-    auto __identity_reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b) {
+    auto __identity_reduce_fn = [__comp](_ReduceValueType __a, _ReduceValueType __b)
+    {
         using ::std::get;
         return __comp(get<1>(__b), get<1>(__a)) ? __b : __a;
     };
 
     auto __ret_idx =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, decltype(__identity_reduce_fn),
-                                                                       decltype(__identity_init_fn)>(
+                                                                       decltype(__identity_init_fn),
+                                                                       std::true_type /*is_commutative*/>(
             ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
             unseq_backend::__no_init_value{}, // no initial value
             ::std::forward<_Range>(__rng))
@@ -588,7 +591,8 @@ __pattern_minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __c
 
     _ReduceValueType __ret =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, __identity_reduce_fn<_Compare>,
-                                                                       decltype(__identity_init_fn)>(
+                                                                       decltype(__identity_init_fn),
+                                                                       std::true_type /*is_commutative*/>(
             ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn<_Compare>{__comp}, __identity_init_fn,
             unseq_backend::__no_init_value{}, // no initial value
             ::std::forward<_Range>(__rng))
