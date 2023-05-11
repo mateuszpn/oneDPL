@@ -441,7 +441,7 @@ struct __sycl_usm_alloc
     }
 };
 
-// impl for USM pointer
+// impl for USM host pointer
 template <typename _ExecutionPolicy, typename _T, typename _BValueT>
 struct __buffer<_ExecutionPolicy, _T, _BValueT*>
 {
@@ -454,7 +454,7 @@ struct __buffer<_ExecutionPolicy, _T, _BValueT*>
 
   public:
     __buffer(_ExecutionPolicy __exec, ::std::size_t __n_elements)
-        : __container(__sycl_usm_alloc<__exec_policy_t, _T, __alloc_t::shared>{__exec}(__n_elements),
+        : __container(__sycl_usm_alloc<__exec_policy_t, _T, __alloc_t::host>{__exec}(__n_elements),
                       __sycl_usm_free<__exec_policy_t, _T>{__exec})
     {
     }
@@ -507,6 +507,20 @@ using __repacked_tuple_t = typename __repacked_tuple<T>::type;
 
 template <typename _ContainerOrIterable>
 using __value_t = typename __internal::__memobj_traits<_ContainerOrIterable>::value_type;
+
+// Only use USM host allocations on Intel GPUs. Other devices show significant slowdowns.
+inline bool
+use_USM_host_allocations(sycl::queue __queue)
+{
+    auto __device = __queue.get_device();
+    if (!__device.is_gpu())
+        return false;
+    if (!__device.has(sycl::aspect::usm_host_allocations))
+        return false;
+    if (__device.get_info<sycl::info::device::vendor_id>() != 32902)
+        return false;
+    return true;
+}
 
 //A contract for future class: <sycl::event or other event, a value or sycl::buffers...>
 //Impl details: inheretance (private) instead of aggregation for enabling the empty base optimization.

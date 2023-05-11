@@ -102,7 +102,7 @@ __parallel_transform_reduce(_ExecutionPolicy&& __exec, _ReduceOp __reduce_op, _T
     using _Policy = typename ::std::decay<_ExecutionPolicy>::type;
     using __kernel_name = typename _Policy::kernel_name;
     auto __device_policy = oneapi::dpl::execution::make_device_policy<__kernel_name>(__exec.queue());
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_Tp>(
+    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_async<_Tp>(
         __device_policy, __reduce_op, __transform_op, __init, ::std::forward<_Ranges>(__rngs)...);
 }
 

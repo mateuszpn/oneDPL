@@ -315,12 +315,11 @@ __pattern_count(_ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __predicat
     auto __identity_init_fn = acc_handler_count<_Predicate>{__predicate};
     auto __identity_reduce_fn = ::std::plus<_ReduceValueType>{};
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<
-               _ReduceValueType, decltype(__identity_reduce_fn), decltype(__identity_init_fn)>(
-               ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
-               unseq_backend::__no_init_value{}, // no initial value
-               ::std::forward<_Range>(__rng))
-        .get();
+    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_sync<
+        _ReduceValueType, decltype(__identity_reduce_fn), decltype(__identity_init_fn)>(
+        ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
+        unseq_backend::__no_init_value{}, // no initial value
+        ::std::forward<_Range>(__rng));
 }
 
 //------------------------------------------------------------------------
@@ -553,13 +552,11 @@ __pattern_min_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp
         return __comp(get<1>(__b), get<1>(__a)) ? __b : __a;
     };
 
-    auto __ret_idx =
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, decltype(__identity_reduce_fn),
-                                                                       decltype(__identity_init_fn)>(
-            ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
-            unseq_backend::__no_init_value{}, // no initial value
-            ::std::forward<_Range>(__rng))
-            .get();
+    auto __ret_idx = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_sync<
+        _ReduceValueType, decltype(__identity_reduce_fn), decltype(__identity_init_fn)>(
+        ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
+        unseq_backend::__no_init_value{}, // no initial value
+        ::std::forward<_Range>(__rng));
 
     using ::std::get;
     return get<0>(__ret_idx);
@@ -586,13 +583,11 @@ __pattern_minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __c
 
     auto __identity_init_fn = __acc_handler_minmaxelement<_ReduceValueType>{};
 
-    _ReduceValueType __ret =
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, __identity_reduce_fn<_Compare>,
-                                                                       decltype(__identity_init_fn)>(
-            ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn<_Compare>{__comp}, __identity_init_fn,
-            unseq_backend::__no_init_value{}, // no initial value
-            ::std::forward<_Range>(__rng))
-            .get();
+    _ReduceValueType __ret = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce_sync<
+        _ReduceValueType, __identity_reduce_fn<_Compare>, decltype(__identity_init_fn)>(
+        ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn<_Compare>{__comp}, __identity_init_fn,
+        unseq_backend::__no_init_value{}, // no initial value
+        ::std::forward<_Range>(__rng));
 
     using ::std::get;
     return ::std::make_pair(get<0>(__ret), get<1>(__ret));
