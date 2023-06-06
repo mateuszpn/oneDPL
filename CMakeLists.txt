@@ -282,6 +282,11 @@ elseif(ONEDPL_BACKEND MATCHES "^(serial)$")
         ONEDPL_USE_DPCPP_BACKEND=0
         ONEDPL_USE_OPENMP_BACKEND=0
         )
+    if (FIND_GXX_EXE)
+        string(REPLACE "\n" "" _onedpl_tbb_use_glibcxx_version ${_onedpl_gxx_version})
+        string(REPLACE "\." "0" _onedpl_tbb_use_glibcxx_version ${_onedpl_tbb_use_glibcxx_version})
+        target_compile_definitions(oneDPL INTERFACE _GLIBCXX_USE_TBB_PAR_BACKEND=0)
+    endif()
     message(STATUS "Compilation for the host due to serial backend")
 
 elseif(ONEDPL_BACKEND MATCHES "^(omp)$")

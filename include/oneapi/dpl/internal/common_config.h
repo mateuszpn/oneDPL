@@ -28,8 +28,9 @@
 // This workaround is for GCC only, so we should use __cplusplus macro
 // instead of _ONEDPL___cplusplus one.
 #if __cplusplus >= 201703L
+#    define _ONEDPL_HAS_TBB __has_include(<tbb/version.h>) && ONEDPL_USE_TBB_BACKEND != 0
 // - New TBB version with incompatible APIs is found (libstdc++ v9/v10)
-#    if __has_include(<tbb/version.h>)
+#    if _ONEDPL_HAS_TBB
 #        ifndef PSTL_USE_PARALLEL_POLICIES
 #            define PSTL_USE_PARALLEL_POLICIES (_GLIBCXX_RELEASE != 9)
 #        endif
@@ -38,9 +39,10 @@
 #        endif
 #    endif // __has_include(<tbb/version.h>)
 // - TBB is not found (libstdc++ v9)
-#    if !__has_include(<tbb/tbb.h>) && !defined(PSTL_USE_PARALLEL_POLICIES)
+#    if !_ONEDPL_HAS_TBB && !defined(PSTL_USE_PARALLEL_POLICIES)
 #        define PSTL_USE_PARALLEL_POLICIES (_GLIBCXX_RELEASE != 9)
 #    endif
+#    undef _ONEDPL_HAS_TBB
 #endif // __cplusplus >= 201703L
 
 #endif // _ONEDPL_COMMON_CONFIG_H

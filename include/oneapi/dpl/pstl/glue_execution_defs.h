@@ -56,8 +56,8 @@ using oneapi::dpl::execution::unsequenced_policy;
 #    include "hetero/numeric_impl_hetero.h"
 #endif
 
-#include "algorithm_impl.h"
-#include "numeric_impl.h"
-#include "parallel_backend.h"
+#include <oneapi/dpl/pstl/algorithm_impl.h>
+#include <oneapi/dpl/pstl/numeric_impl.h>
+#include <oneapi/dpl/pstl/parallel_backend.h>
 
 #endif // _ONEDPL_GLUE_EXECUTION_DEFS_H
