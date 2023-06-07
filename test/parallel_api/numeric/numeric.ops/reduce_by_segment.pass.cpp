@@ -339,7 +339,7 @@ main()
     {
         using ValueType = ::std::complex<float>;
         using BinaryPredicate = UserBinaryPredicate<ValueType>;
-        using BinaryOperation = MaxAbsFunctor<ValueType>;
+        using BinaryOperation = MaxFunctor<ValueType>;
 
 #if TEST_DPCPP_BACKEND_PRESENT
         // Run tests for USM shared memory
