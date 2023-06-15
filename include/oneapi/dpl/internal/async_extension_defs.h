@@ -110,6 +110,13 @@ auto
 sort_async(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
            _Events&&... __dependencies);
 
+template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _Buf, class... _Events,
+          oneapi::dpl::__internal::__enable_if_device_execution_policy_single_no_default<_ExecutionPolicy, int,
+                                                                                         _Compare, _Events...> = 0>
+auto
+sort_async_buffer(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp, _Buf __buf,
+           _Events&&... __dependencies);
+
 template <class _ExecutionPolicy, class _ForwardIterator, class _Tp, class... _Events,
           oneapi::dpl::__internal::__enable_if_device_execution_policy<_ExecutionPolicy, int, _Events...> = 0>
 auto

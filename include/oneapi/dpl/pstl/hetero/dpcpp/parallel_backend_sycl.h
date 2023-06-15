@@ -1548,9 +1548,9 @@ struct __parallel_sort_submitter<__internal::__optional_kernel_name<_LeafSortNam
                                  __internal::__optional_kernel_name<_GlobalSortName...>,
                                  __internal::__optional_kernel_name<_CopyBackName...>>
 {
-    template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare>
+    template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare, typename _Buffer>
     auto
-    operator()(_ExecutionPolicy&& __exec, _Range&& __rng, _Merge __merge, _Compare __comp) const
+    operator()(_ExecutionPolicy&& __exec, _Range&& __rng, _Merge __merge, _Compare __comp, _Buffer __temp) const
     {
         using _Policy = typename ::std::decay<_ExecutionPolicy>::type;
         using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
@@ -1592,9 +1592,6 @@ struct __parallel_sort_submitter<__internal::__optional_kernel_name<_LeafSortNam
         _Size __sorted = __leaf;
         // Chunk size cannot be bigger than size of a sorted sequence
         _Size __chunk = ::std::min(__leaf, __optimal_chunk);
-
-        oneapi::dpl::__par_backend_hetero::__internal::__buffer<_Policy, _Tp> __temp_buf(__exec, __n);
-        auto __temp = __temp_buf.get_buffer();
         bool __data_in_temp = false;
 
         // 2. Perform merge sorting
@@ -1693,8 +1690,32 @@ __parallel_sort_impl(_ExecutionPolicy&& __exec, _Range&& __rng, _Merge __merge, 
     using _CopyBackKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_copy_back_kernel<_CustomName>>;
 
+    auto __n = oneapi::dpl::__ranges::__get_first_range_size(__rng);
+
+    using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
+    oneapi::dpl::__par_backend_hetero::__internal::__buffer<_ExecutionPolicy, _Tp> __temp_buf(__exec, __n);
+    auto __temp = __temp_buf.get_buffer();
+
     return __parallel_sort_submitter<_LeafSortKernel, _GlobalSortKernel, _CopyBackKernel>()(
-        ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __merge, __comp);
+        ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __merge, __comp, __temp);
+}
+
+template <typename _ExecutionPolicy, typename _Range, typename _Merge, typename _Compare, typename _Buf,
+          oneapi::dpl::__internal::__enable_if_device_execution_policy<_ExecutionPolicy, int> = 0>
+auto
+__parallel_sort_impl(_ExecutionPolicy&& __exec, _Range&& __rng, _Merge __merge, _Compare __comp, _Buf __temp)
+{
+    using _Policy = typename ::std::decay<_ExecutionPolicy>::type;
+    using _CustomName = typename _Policy::kernel_name;
+    using _LeafSortKernel =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_leaf_kernel<_CustomName>>;
+    using _GlobalSortKernel =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_global_kernel<_CustomName>>;
+    using _CopyBackKernel =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_copy_back_kernel<_CustomName>>;
+
+    return __parallel_sort_submitter<_LeafSortKernel, _GlobalSortKernel, _CopyBackKernel>()(
+        ::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng), __merge, __comp, __temp);
 }
 
 // Please see the comment for __parallel_for_submitter for optional kernel name explanation
@@ -1825,9 +1846,30 @@ __parallel_stable_sort(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __com
     auto __cmp_f = [__comp, __proj](const auto& __a, const auto& __b) mutable {
         return __comp(__proj(__a), __proj(__b));
     };
+
+    using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
+    auto __n = oneapi::dpl::__ranges::__get_first_range_size(__rng);
+    oneapi::dpl::__par_backend_hetero::__internal::__buffer<_ExecutionPolicy, _Tp> __temp_buf(__exec, __n);
+    auto __temp = __temp_buf.get_buffer();
+
     return __parallel_sort_impl(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
                                 // Pass special tag to choose 'full' merge subroutine at compile-time
-                                __full_merge_kernel(), __cmp_f);
+                                __full_merge_kernel(), __cmp_f, __temp);
+}
+
+template <
+    typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Buf, typename _Proj,
+    __enable_if_t<oneapi::dpl::__internal::__is_device_execution_policy<__decay_t<_ExecutionPolicy>>::value, int> = 0>
+auto
+__parallel_stable_sort_buffer(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp, _Buf __temp, _Proj __proj)
+{
+    auto __cmp_f = [__comp, __proj](const auto& __a, const auto& __b) mutable {
+        return __comp(__proj(__a), __proj(__b));
+    };
+
+    return __parallel_sort_impl(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
+                                // Pass special tag to choose 'full' merge subroutine at compile-time
+                                __full_merge_kernel(), __cmp_f, __temp);
 }
 
 //------------------------------------------------------------------------
