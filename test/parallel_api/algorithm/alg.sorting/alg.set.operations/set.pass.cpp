@@ -133,9 +133,9 @@ struct comp_select_first
     comp_select_first(_Comp __comp) : comp(__comp) {}
     template <typename _T1, typename _T2>
     bool
-    operator()(_T1 t1, _T2 t2) const
+    operator()(_T1&& t1, _T2&& t2) const
     {
-        return comp(::std::get<0>(t1), ::std::get<0>(t2));
+        return comp(::std::get<0>(::std::forward<_T1>(t1)), ::std::get<0>(::std::forward<_T2>(t2)));
     }
 };
 
