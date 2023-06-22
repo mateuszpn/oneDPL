@@ -109,6 +109,23 @@ sort_async(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAcce
                       ::std::forward<_Events>(__dependencies)...);
 }
 
+template <class _ExecutionPolicy, class _Iterator, class _Proj, class... _Events,
+          oneapi::dpl::__internal::__enable_if_device_execution_policy<_ExecutionPolicy, int, _Events...>>
+auto
+sort_by_key_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Proj __proj,
+           _Events&&... __dependencies)
+{
+    using _ValueType = typename ::std::iterator_traits<_Iterator>::value_type;
+    wait_for_all(::std::forward<_Events>(__dependencies)...);
+    assert(__last - __first >= 2);
+
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
+    auto __buf = __keep(__first, __last);
+
+    return __par_backend_hetero::__parallel_stable_sort(::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
+                                                        ::std::less<_ValueType>{}, __proj);
+}
+
 // [async.for_each]
 template <class _ExecutionPolicy, class _ForwardIterator, class _Function, class... _Events,
           oneapi::dpl::__internal::__enable_if_device_execution_policy<_ExecutionPolicy, int, _Events...>>
