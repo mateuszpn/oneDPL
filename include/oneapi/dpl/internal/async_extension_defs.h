@@ -103,17 +103,17 @@ auto
 sort_async(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
            _Events&&... __dependencies);
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Proj, class... _Events,
-          oneapi::dpl::__internal::__enable_if_device_execution_policy<_ExecutionPolicy, int, _Events...> = 0>
-auto
-sort_by_key_async(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last, _Proj __proj,
-           _Events&&... __dependencies);
-
 template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class... _Events,
           oneapi::dpl::__internal::__enable_if_device_execution_policy_single_no_default<_ExecutionPolicy, int,
                                                                                          _Compare, _Events...> = 0>
 auto
 sort_async(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
+           _Events&&... __dependencies);
+
+template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _Proj, class... _Events,
+          oneapi::dpl::__internal::__enable_if_device_execution_policy<_ExecutionPolicy, int, _Events...> = 0>
+auto
+sort_by_key_async(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp, _Proj __proj,
            _Events&&... __dependencies);
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Tp, class... _Events,
