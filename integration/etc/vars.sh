@@ -15,6 +15,22 @@
 #
 ##===----------------------------------------------------------------------===##
 
+if [ -z "${SETVARS_CALL:-}" ] ; then
+  >&2 echo " "
+  >&2 echo ":: ERROR: This script must be sourced by setvars.sh."
+  >&2 echo "   Try 'source <install-dir>/setvars.sh --help' for help."
+  >&2 echo " "
+  return 255
+fi
+
+if [ -z "${ONEAPI_ROOT:-}" ] ; then
+  >&2 echo " "
+  >&2 echo ":: ERROR: This script requires that the ONEAPI_ROOT env variable is set."
+  >&2 echo "   Try 'source <install-dir>\setvars.sh --help' for help."
+  >&2 echo " "
+  return 254
+fi
+
 # ############################################################################
 
 # executing function in a *subshell* to localize vars and effects on `cd`
