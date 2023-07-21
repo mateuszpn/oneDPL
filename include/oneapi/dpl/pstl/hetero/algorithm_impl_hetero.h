@@ -964,59 +964,34 @@ __pattern_unique(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
 // is_partitioned
 //------------------------------------------------------------------------
 
-enum _IsPartitionedReduceType : signed char
-{
-    __broken,
-    __all_true,
-    __all_false,
-    __true_false
-};
-
-template <typename _Predicate>
-struct acc_handler_is_partitioned
-{
-    _Predicate __predicate;
-
-    // int is being implicitly casted to difference_type
-    // otherwise we can only pass the difference_type as a functor template parameter
-    template <typename _Acc, typename _GlobalIdx>
-    _IsPartitionedReduceType
-    operator()(_GlobalIdx gidx, _Acc acc) const
-    {
-        return (__predicate(acc[gidx]) ? __all_true : __all_false);
-    }
-};
-
-template <typename _ExecutionPolicy, typename _Iterator, typename _Predicate>
+template <typename _ExecutionPolicy, typename _Iterator, typename _Pred>
 oneapi::dpl::__internal::__enable_if_hetero_execution_policy<_ExecutionPolicy, bool>
-__pattern_is_partitioned(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Predicate __predicate,
+__pattern_is_partitioned(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Pred __pred,
                          /*parallel*/ ::std::true_type, /*vector*/ ::std::true_type)
 {
     if (__last - __first < 2)
         return true;
+    using _FirstPredicate = oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<
+        _ExecutionPolicy, oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, _Pred>>>;
+    using _EndPredicate = oneapi::dpl::unseq_backend::single_match_pred<_ExecutionPolicy, _Pred>;
 
-    using _ReduceValueType = _IsPartitionedReduceType;
+    _Iterator first_found = __par_backend_hetero::__parallel_find(
+        ::std::forward<_ExecutionPolicy>(__exec),
+        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__first),
+        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__last), _FirstPredicate{__pred},
+        ::std::true_type{});
 
-    auto __identity_init_fn = acc_handler_is_partitioned<_Predicate>{__predicate};
-    auto __identity_reduce_fn = [](_ReduceValueType __val1, _ReduceValueType __val2) -> _ReduceValueType {
-        _ReduceValueType __table[] = {__broken,     __broken,     __broken,     __broken, __broken,    __all_true,
-                                      __true_false, __true_false, __broken,     __broken, __all_false, __broken,
-                                      __broken,     __broken,     __true_false, __broken};
-        return __table[__val1 * 4 + __val2];
-    };
+    if (first_found == __last)
+        return true;
 
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
-    auto __buf = __keep(__first, __last);
+    _Iterator end_found = __par_backend_hetero::__parallel_find(
+        __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__find_policy_wrapper2>(
+            ::std::forward<_ExecutionPolicy>(__exec)),
+        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(first_found),
+        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read>(__last), _EndPredicate{__pred},
+        ::std::true_type{});
 
-    auto __res =
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType, decltype(__identity_reduce_fn),
-                                                                       decltype(__identity_init_fn)>(
-            ::std::forward<_ExecutionPolicy>(__exec), __identity_reduce_fn, __identity_init_fn,
-            unseq_backend::__no_init_value{}, // no initial value
-            __buf.all_view())
-            .get();
-
-    return __broken != __identity_reduce_fn(_ReduceValueType{__all_true}, __res);
+    return end_found == __last;
 }
 
 //------------------------------------------------------------------------

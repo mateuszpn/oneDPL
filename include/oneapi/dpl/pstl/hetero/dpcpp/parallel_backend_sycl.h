@@ -1227,6 +1227,11 @@ class __find_policy_wrapper
 {
 };
 
+template <typename Name>
+class __find_policy_wrapper2
+{
+};
+
 template <typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Brick, typename _IsFirst>
 oneapi::dpl::__internal::__enable_if_device_execution_policy<_ExecutionPolicy, _Iterator1>
 __parallel_find(_ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last, _Iterator2 __s_first,
