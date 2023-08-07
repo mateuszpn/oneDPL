@@ -156,13 +156,13 @@ foreach (_file IN LISTS UNIT_TESTS)
             message(STATUS "Skip test ${_file} as it requires DPC++ backend")
         endif()
     else()
-        if (_file MATCHES "${_regexp_switch_off_checked_it}")
+##        if (_file MATCHES "${_regexp_switch_off_checked_it}")
             # Switch off checked iterators
             onedpl_add_test(${_file} true)
-        else()
+##        else()
             # Do not switch off checked iterators
-            onedpl_add_test(${_file} false)
-        endif()
+##            onedpl_add_test(${_file} false)
+##        endif()
     endif()
 
 endforeach()
