@@ -148,6 +148,7 @@ set(_regexp_switch_off_checked_it  "(test/general/header_order_ranges|test/paral
 file(GLOB_RECURSE UNIT_TESTS "*.pass.cpp")
 foreach (_file IN LISTS UNIT_TESTS)
     message("files are " ${_file} )
+    onedpl_add_test(${_file} true)
     if (_file MATCHES "${_regexp_dpcpp_backend_required}")
         if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
             # Switch off checked iterators
