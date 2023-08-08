@@ -147,7 +147,7 @@ set(_regexp_dpcpp_backend_required "(xpu_api/algorithms|xpu_api/functional|xpu_a
 set(_regexp_switch_off_checked_it  "(test/general/header_order_ranges|test/parallel_api/algorithm/alg.sorting/alg.min.max|test/parallel_api/ranges|test/xpu_api/random/device_tests|test/xpu_api/random/interface_tests|test/xpu_api/random/statistics_tests|test/parallel_api/numeric/numeric.ops/transform_scan)")
 file(GLOB_RECURSE UNIT_TESTS "*.pass.cpp")
 foreach (_file IN LISTS UNIT_TESTS)
-
+    message("files are " ${_file} )
     if (_file MATCHES "${_regexp_dpcpp_backend_required}")
         if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
             # Switch off checked iterators
