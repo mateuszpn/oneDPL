@@ -62,14 +62,14 @@ namespace experimental{
       state_->offset_ = offset;
       state_->next_context_ = state_->offset_;
     }
-
+/*
     template<typename ...Args>
     round_robin_policy(Args&&... args) : backend_{std::make_shared<backend_t>(std::forward<Args>(args)...)}, state_{std::make_shared<state_t>()} {
       state_->resources_ = backend_->get_resources();
       state_->num_contexts_ = state_->resources_.size();
       state_->next_context_ = 0;
     }
-
+*/
     auto get_resources() const {
       return backend_->get_resources();
     }
@@ -115,10 +115,11 @@ namespace experimental{
     auto get_submission_group() {
       return backend_->get_submission_group();
     }
-
+/*
     auto wait() {
       backend_->wait();
     }
+*/
   };
 } // namespace experimental
 
