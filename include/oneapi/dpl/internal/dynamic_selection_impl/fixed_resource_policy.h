@@ -41,12 +41,12 @@ namespace experimental {
 
     std::shared_ptr<state_t> state_;
 
-    fixed_resource_policy(int offset) : backend_{std::make_shared<backend_t>()}, state_{std::make_shared<state_t>()}  {
+    fixed_resource_policy(int offset=0) : backend_{std::make_shared<backend_t>()}, state_{std::make_shared<state_t>()}  {
       state_->resources_ = get_resources();
       state_->offset_ = offset;
     }
 
-    fixed_resource_policy(resource_container_t u, int offset) : backend_{std::make_shared<backend_t>()}, state_{std::make_shared<state_t>()} {
+    fixed_resource_policy(resource_container_t u, int offset=0) : backend_{std::make_shared<backend_t>()}, state_{std::make_shared<state_t>()} {
       backend_->initialize(u);
       state_->resources_ = get_resources();
       state_->offset_ = offset;
