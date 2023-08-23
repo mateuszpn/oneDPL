@@ -51,12 +51,12 @@ namespace experimental {
       state_->resources_ = get_resources();
       state_->offset_ = offset;
     }
-
+/*
     template<typename ...Args>
     fixed_resource_policy(Args&&... args) : backend_{std::make_shared<backend_t>(std::forward<Args>(args)...)}, state_{std::make_shared<state_t>()} {
       state_->resources_ = get_resources();
     }
-
+*/
     auto get_resources()  const {
       return backend_->get_resources();
     }
