@@ -115,11 +115,12 @@ namespace experimental{
     auto get_submission_group() {
       return backend_->get_submission_group();
     }
-
+/*
     auto wait() {
       backend_->wait();
     }
-  };
+*/ 
+};
 } // namespace experimental
 
 } // namespace dpl
