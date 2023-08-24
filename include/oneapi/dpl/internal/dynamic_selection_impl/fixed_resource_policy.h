@@ -10,7 +10,7 @@
 #ifndef _ONEDPL_STATIC_POLICY_IMPL_H
 #define _ONEDPL_STATIC_POLICY_IMPL_H
 
-//#include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
+#include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
 #if _DS_BACKEND_SYCL != 0
     #include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
 #endif
