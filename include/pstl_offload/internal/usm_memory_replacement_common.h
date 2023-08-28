@@ -20,7 +20,7 @@
 #if __linux__
 #include <dlfcn.h>
 #include <unistd.h>
-#endif // __linux__
+#endif
 
 namespace __pstl_offload
 {
@@ -43,12 +43,42 @@ struct __block_header
 
 static_assert(__is_power_of_two(sizeof(__block_header)));
 
+using __realloc_func_type = void* (*)(void*, std::size_t);
+using __aligned_alloc_func_type = void* (*)(std::size_t alignment, std::size_t size);
+
 #if __linux__
+
+inline std::size_t
+__get_page_size()
+{
+    return sysconf(_SC_PAGESIZE);
+}
+
+inline void*
+__original_realloc(void* __user_ptr, std::size_t __new_size)
+{
+    using __realloc_func_type = void* (*)(void*, std::size_t);
+
+    static __realloc_func_type __orig_realloc = __realloc_func_type(dlsym(RTLD_NEXT, "realloc"));
+    return __orig_realloc(__user_ptr, __new_size);
+}
+
+#elif _WIN64
+
+std::size_t __get_page_size();
+
+void* __original_realloc(void* __user_ptr, std::size_t __new_size);
+void* __original_malloc(std::size_t);
+void* __original_aligned_alloc(std::size_t size, std::size_t alignment);
+
+void* __aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::size_t __alignment);
+
+#endif
 
 inline std::size_t
 __get_memory_page_size()
 {
-    static std::size_t __memory_page_size = sysconf(_SC_PAGESIZE);
+    static std::size_t __memory_page_size = __get_page_size();
     assert(__is_power_of_two(__memory_page_size));
     return __memory_page_size;
 }
@@ -98,15 +128,6 @@ __allocate_shared_for_device(sycl::device* __device, std::size_t __size, std::si
     }
 
     return __ptr;
-}
-
-inline void*
-__original_realloc(void* __user_ptr, std::size_t __new_size)
-{
-    using __realloc_func_type = void* (*)(void*, std::size_t);
-
-    static __realloc_func_type __orig_realloc = __realloc_func_type(dlsym(RTLD_NEXT, "realloc"));
-    return __orig_realloc(__user_ptr, __new_size);
 }
 
 inline void
@@ -167,7 +188,15 @@ __internal_realloc(void* __user_ptr, std::size_t __new_size)
     return __user_ptr == nullptr ? std::malloc(__new_size) : __realloc_real_pointer(__user_ptr, __new_size);
 }
 
-#endif // __linux__
+#if _WIN64
+
+static void*
+__internal_aligned_realloc(void* __user_ptr, std::size_t __new_size, std::size_t __alignment)
+{
+    return __user_ptr == nullptr ? _aligned_malloc(__new_size, __alignment) :
+        __aligned_realloc_real_pointer(__user_ptr, __new_size, __alignment);
+}
+#endif // _WIN64
 
 } // namespace __pstl_offload
 

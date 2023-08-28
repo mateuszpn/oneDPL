@@ -10,6 +10,7 @@
 #ifndef _ALLOCATION_UTILS_H
 #define _ALLOCATION_UTILS_H
 
+#if __linux__
 extern "C"
 {
 void *__libc_malloc(std::size_t);
@@ -17,6 +18,7 @@ void *__libc_calloc(std::size_t, std::size_t);
 void *__libc_memalign(std::size_t, std::size_t);
 void *__libc_realloc(void *, std::size_t);
 }
+#endif // __linux__
 
 #if !__cpp_sized_deallocation
 // Intel* oneAPI DPC++/C++ Compiler doesn't set __cpp_sized_deallocation,
@@ -26,18 +28,20 @@ void operator delete[](void* __ptr, std::size_t) noexcept;
 #endif // __cpp_sized_deallocation
 
 struct allocs {
-    void *malloc_ptr;
-    void *calloc_ptr;
-    void *realloc_ptr;
+    void* malloc_ptr;
+    void* calloc_ptr;
+    void* realloc_ptr;
+    void* memalign_ptr;
 #if __linux__
-    void *memalign_ptr;
-    void *posix_memalign_ptr;
-    void *aligned_alloc_ptr;
+    void* posix_memalign_ptr;
+    void* aligned_alloc_ptr;
 
-    void *libc_malloc_ptr;
-    void *libc_calloc_ptr;
-    void *libc_realloc_ptr;
-    void *libc_memalign_ptr;
+    void* libc_malloc_ptr;
+    void* libc_calloc_ptr;
+    void* libc_realloc_ptr;
+    void* libc_memalign_ptr;
+#elif _WIN64
+    void* aligned_realloc_ptr;
 #endif // __linux__
 
     void *new_ptr;
@@ -66,7 +70,10 @@ static allocs perform_allocations_impl() {
     na.libc_malloc_ptr = __libc_malloc(allocs::alloc_size);
     na.libc_calloc_ptr = __libc_calloc(allocs::alloc_size, allocs::alloc_size);
     na.libc_realloc_ptr = __libc_realloc(nullptr, allocs::alloc_size);
-    na.libc_memalign_ptr = __libc_memalign(16, allocs::alloc_size);
+    na.libc_memalign_ptr = __libc_memalign(allocs::alignment, allocs::alloc_size);
+#elif _WIN64
+    na.memalign_ptr = _aligned_malloc(allocs::alloc_size, allocs::alignment);
+    na.aligned_realloc_ptr = _aligned_realloc(nullptr, allocs::alloc_size, allocs::alignment);
 #endif // __linux__
 
     na.new_ptr = ::operator new(allocs::alloc_size);
@@ -94,6 +101,9 @@ static void perform_deallocations_impl(const allocs& na) {
     free(na.libc_calloc_ptr);
     free(na.libc_realloc_ptr);
     free(na.libc_memalign_ptr);
+#elif _WIN64
+    _aligned_free(na.memalign_ptr);
+    _aligned_realloc(na.aligned_realloc_ptr, 0, 0);
 #endif // __linux__
 
     operator delete(na.new_ptr);

@@ -15,9 +15,18 @@
 #include <cstdlib>
 
 #include "support/utils.h"
+#if _WIN64
+#include <windows.h>
+#endif
 
 static std::size_t get_page_size() {
+#if __linux__
     static std::size_t page_size = sysconf(_SC_PAGESIZE);
+#elif _WIN64
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    static std::size_t page_size = si.dwPageSize;
+#endif
     return page_size;
 }
 
@@ -34,6 +43,7 @@ void test_alignment_allocation(AllocatingFunction allocate, DeallocatingFunction
     }
 }
 
+#if __linux__
 // aligned_alloc requires size to be integral multiple of alignment
 // test_alignment_allocation tests different sizes values because other functions
 // only requires the alignment to be power of two
@@ -48,6 +58,7 @@ void test_aligned_alloc_alignment() {
         }
     }
 }
+#endif
 
 void test_new_alignment() {
     auto new_allocate = [](std::size_t size, std::size_t alignment) {
@@ -86,10 +97,14 @@ void test_new_alignment() {
 }
 
 int main() {
+#if __linux__
+    auto aligned_alloc_allocate = [](std::size_t size, std::size_t alignment)
+    {
+        return aligned_alloc(alignment, size);
+    };
     auto memalign_allocate = [](std::size_t size, std::size_t alignment) {
         return memalign(alignment, size);
     };
-#if __linux__
     auto posix_memalign_allocate = [](std::size_t size, std::size_t alignment) {
         void* ptr = nullptr;
         posix_memalign(&ptr, alignment, size);
@@ -98,18 +113,25 @@ int main() {
     auto __libc_memalign_allocate = [](std::size_t size, std::size_t alignment) {
         return __libc_memalign(alignment, size);
     };
-#endif
 
     auto free_deallocate = [](void* ptr, std::size_t) {
         free(ptr);
     };
 
     test_alignment_allocation(memalign_allocate, free_deallocate);
-#if __linux__
     test_alignment_allocation(posix_memalign_allocate, free_deallocate);
     test_alignment_allocation(__libc_memalign_allocate, free_deallocate);
-#endif
     test_aligned_alloc_alignment();
+#elif _WIN64
+    auto _aligned_malloc_allocate = [](std::size_t size, std::size_t alignment) {
+        return _aligned_malloc(size, alignment);
+    };
+    auto _aligned_free_deallocate = [](void* ptr, std::size_t) {
+        _aligned_free(ptr);
+    };
+
+    test_alignment_allocation(_aligned_malloc_allocate, _aligned_free_deallocate);
+#endif
 
     test_new_alignment();
 
