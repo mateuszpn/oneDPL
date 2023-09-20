@@ -155,16 +155,22 @@ struct dynamic_load_policy
             std::unique_lock<std::mutex> l(state_->m_);
             std::shared_ptr<resource_t> least_loaded;
             int least_load = std::numeric_limits<load_t>::max();
+            int index_loaded;
             for (int i = 0; i < state_->resources_.size(); i++)
             {
                 auto r = state_->resources_[i];
                 load_t v = r->load_.load();
+                std::cout<<v<<"\t";
                 if (!least_loaded || v < least_load)
                 {
                     least_load = v;
                     least_loaded = ::std::move(r);
+                    index_loaded = i;
                 }
             }
+            std::cout<<"\n";
+
+            std::cout<<"Least loaded = "<<index_loaded<<"\n";
             return selection_type{dynamic_load_policy<Backend>(*this), least_loaded};
         }
         else
