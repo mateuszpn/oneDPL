@@ -66,7 +66,7 @@ test_select(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};
-
+    std::cout<<"Universe size in select function : "<<u.size()<<"\n";
     const int N = 100;
     std::atomic<int> ecount = 0;
     bool pass = true;
@@ -75,7 +75,10 @@ test_select(UniverseContainer u, ResourceFunction&& f)
 
     for (int i = 1; i <= N; ++i)
     {
+        std::cout<<"Segfault here\n";
         auto test_resource = f(i);
+        std::cout<<"Should not reach this point\n";
+
         if constexpr (AutoTune)
         {
             auto h = select(p, function_key);

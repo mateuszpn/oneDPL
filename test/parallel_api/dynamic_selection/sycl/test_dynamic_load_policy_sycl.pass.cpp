@@ -51,11 +51,12 @@ main()
     build_dl_universe(u);
 
     auto n = u.size();
-
+    std::cout<<"Universe size is : "<<n<<"\n";
     //If building the universe is not a success, return
-    if (n == 0)
+    if (n == 0){
+        std::cout<<"Empty Universe\n";
         return 0;
-
+    }
     // should be similar to round_robin when waiting on policy
     auto f = [u, n](int i) { return u[i % u.size()]; };
 
