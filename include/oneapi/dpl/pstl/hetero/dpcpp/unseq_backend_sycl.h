@@ -206,8 +206,25 @@ struct transform_reduce
         auto __local_idx = __item_id.get_local_id(0);
         const _Size __adjusted_global_id = __global_offset + __iters_per_work_item * __global_idx;
         const _Size __adjusted_n = __global_offset + __n;
+        const bool __is_full = __adjusted_global_id + __iters_per_work_item < __adjusted_n;
         // Add neighbour to the current __local_mem
-        if (__adjusted_global_id + __iters_per_work_item < __adjusted_n)
+        if (__is_full && __iters_per_work_item % 4 == 0)
+        {
+            // Keep these statements in the same scope to allow for better memory alignment
+            typename _AccLocal::value_type __res = __unary_op(__adjusted_global_id, __acc...);
+            __res = __binary_op(__res, __unary_op(__adjusted_global_id + 1, __acc...));
+            __res = __binary_op(__res, __unary_op(__adjusted_global_id + 2, __acc...));
+            __res = __binary_op(__res, __unary_op(__adjusted_global_id + 3, __acc...));
+            for (_Size __i = 4; __i < __iters_per_work_item; __i += 4)
+            {
+                __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i, __acc...));
+                __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i + 1, __acc...));
+                __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i + 2, __acc...));
+                __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i + 3, __acc...));
+            }
+            __local_mem[__local_idx] = __res;
+        }
+        else if (__is_full)
         {
             // Keep these statements in the same scope to allow for better memory alignment
             typename _AccLocal::value_type __res = __unary_op(__adjusted_global_id, __acc...);
