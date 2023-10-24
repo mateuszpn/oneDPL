@@ -54,7 +54,7 @@ __work_group_reduce_kernel(const _NDItemId __item_id, const _Size __iters_per_wo
                            _ReducePattern __reduce_pattern, _InitType __init, const _AccLocal& __local_mem,
                            const _Res& __res_acc, const _Acc&... __acc)
 {
-    auto __local_idx = __item_id.get_local_id(0);
+    const auto __local_idx = __item_id.get_local_id(0);
     // 1. Initialization (transform part). Fill local memory
     __transform_pattern(__item_id, __iters_per_work_item, __n, /*global_offset*/ (_Size)0, __local_mem, __acc...);
     __dpl_sycl::__group_barrier(__item_id);
@@ -75,8 +75,8 @@ __device_reduce_kernel(const _NDItemId __item_id, const _Size __iters_per_work_i
                        const _Size __n_items, _TransformPattern __transform_pattern, _ReducePattern __reduce_pattern,
                        const _AccLocal& __local_mem, const _Tmp& __temp_acc, const _Acc&... __acc)
 {
-    auto __local_idx = __item_id.get_local_id(0);
-    auto __group_idx = __item_id.get_group(0);
+    const auto __local_idx = __item_id.get_local_id(0);
+    const auto __group_idx = __item_id.get_group(0);
     // 1. Initialization (transform part). Fill local memory
     __transform_pattern(__item_id, __iters_per_work_item, __n, /*global_offset*/ (_Size)0, __local_mem, __acc...);
     __dpl_sycl::__group_barrier(__item_id);
@@ -124,7 +124,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, __work_group_size, __int
                 __cgh.parallel_for<_Name...>(
                     sycl::nd_range<1>(sycl::range<1>(__work_group_size), sycl::range<1>(__work_group_size)),
                     [=](sycl::nd_item<1> __item_id) {
-                        auto __res_ptr = __res_acc.__get_pointer();
+                        const auto __res_ptr = __res_acc.__get_pointer();
                         __work_group_reduce_kernel<_Tp>(__item_id, __iters_per_work_item, __n, __n_items,
                                                         __transform_pattern, __reduce_pattern, __init, __temp_local,
                                                         __res_ptr, __rngs...);
@@ -151,10 +151,7 @@ __parallel_transform_reduce_small_impl(_ExecutionPolicy&& __exec, const _Size __
     if (__iters_per_work_item > 16)
         __iters_per_work_item = 32; // Empirically tested
     else if (__iters_per_work_item > 2)
-    {
-        _Size __iters_tmp = oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, 4);
-        __iters_per_work_item = __iters_tmp * 4;
-    }
+        __iters_per_work_item = oneapi::dpl::__internal::__dpl_bit_ceil((::std::uint8_t)__iters_per_work_item);
 
     return __parallel_transform_reduce_small_submitter<_Tp, __work_group_size, _ReduceKernel>()(
         ::std::forward<_ExecutionPolicy>(__exec), __iters_per_work_item, __n, __reduce_op, __transform_op, __init,
@@ -249,7 +246,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, __work_group
             __cgh.parallel_for<_KernelName...>(
                 sycl::nd_range<1>(sycl::range<1>(__work_group_size2), sycl::range<1>(__work_group_size2)),
                 [=](sycl::nd_item<1> __item_id) {
-                    auto __res_ptr = __res_acc.__get_pointer();
+                    const auto __res_ptr = __res_acc.__get_pointer();
                     __work_group_reduce_kernel<_Tp>(__item_id, __iters_per_work_item, __n, __n_items,
                                                     __transform_pattern, __reduce_pattern, __init, __temp_local,
                                                     __res_ptr, __temp_acc);
@@ -279,10 +276,8 @@ __parallel_transform_reduce_mid_impl(_ExecutionPolicy&& __exec, _Size __n, _Redu
     if (__iters_per_work_item_device_kernel > 16)
         __iters_per_work_item_device_kernel = 32; // Empirically tested
     else if (__iters_per_work_item_device_kernel > 2)
-    {
-        _Size __iters_tmp = oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item_device_kernel, 4);
-        __iters_per_work_item_device_kernel = __iters_tmp * 4;
-    }
+        __iters_per_work_item_device_kernel =
+            oneapi::dpl::__internal::__dpl_bit_ceil((::std::uint8_t)__iters_per_work_item_device_kernel);
 
     _Size __iters_per_work_item_work_group_kernel = oneapi::dpl::__internal::__dpl_ceiling_div(
         __n, __work_group_size * __iters_per_work_item_device_kernel * __work_group_size);
@@ -335,20 +330,7 @@ struct __parallel_transform_reduce_impl
         if (__iters_per_work_item > 16)
             __iters_per_work_item = 32; // Empirically tested
         else if (__iters_per_work_item > 2)
-        {
-            _Size __iters_tmp = oneapi::dpl::__internal::__dpl_ceiling_div(__iters_per_work_item, 4);
-            __iters_per_work_item = __iters_tmp * 4;
-        }
-
-        //_Size __iters_per_work_item = 1;
-        //if (__queue.get_device().is_gpu())
-        //    __iters_per_work_item = 32;  // Empirically tested
-        //else
-        //{
-        //    // distribution is ~1 work groups per compute unit
-        //    auto __max_compute_units = oneapi::dpl::__internal::__max_compute_units(__exec);
-        //    __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, (__max_compute_units * __work_group_size));
-        //}
+            __iters_per_work_item = oneapi::dpl::__internal::__dpl_bit_ceil((::std::uint8_t)__iters_per_work_item);
 
         _Size __size_per_work_group =
             __iters_per_work_item * __work_group_size; // number of buffer elements processed within workgroup
@@ -391,9 +373,9 @@ struct __parallel_transform_reduce_impl
                     sycl::nd_range<1>(sycl::range<1>(__n_groups * __work_group_size),
                                       sycl::range<1>(__work_group_size)),
                     [=](sycl::nd_item<1> __item_id) {
-                        auto __res_ptr = __res_acc.__get_pointer();
-                        auto __local_idx = __item_id.get_local_id(0);
-                        auto __group_idx = __item_id.get_group(0);
+                        const auto __res_ptr = __res_acc.__get_pointer();
+                        const auto __local_idx = __item_id.get_local_id(0);
+                        const auto __group_idx = __item_id.get_group(0);
                         // 1. Initialization (transform part). Fill local memory
                         if (__is_first)
                             __transform_pattern1(__item_id, __iters_per_work_item, __n, /*global_offset*/ (_Size)0,
@@ -417,8 +399,7 @@ struct __parallel_transform_reduce_impl
                         }
                     });
             });
-            if (__is_first)
-                __is_first = false;
+            __is_first = false;
             ::std::swap(__offset_1, __offset_2);
             __n = __n_groups;
             __n_items = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __iters_per_work_item);
