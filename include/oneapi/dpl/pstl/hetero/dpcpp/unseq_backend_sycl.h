@@ -197,35 +197,16 @@ struct transform_reduce
     _Operation1 __binary_op;
     _Operation2 __unary_op;
 
-    template <::std::uint8_t __iters_per_work_item, typename _NDItemId, typename _Size, typename _AccLocal,
-              typename... _Acc>
-    void
-    reduce_impl(const _NDItemId __item_id, const _Size __n, const _Size __global_offset, const _AccLocal& __local_mem,
-                const _Acc&... __acc) const
+    template <typename _Tp, ::std::uint8_t __iters_per_work_item, typename _Size, typename _AccLocal, typename... _Acc>
+    inline _Tp
+    reduce_impl(const _Size __adjusted_global_id, const _AccLocal& __local_mem, const _Acc&... __acc) const
     {
-        const auto __global_idx = __item_id.get_global_id(0);
-        const auto __local_idx = __item_id.get_local_id(0);
-        const _Size __adjusted_global_id = __global_offset + __iters_per_work_item * __global_idx;
-        const _Size __adjusted_n = __global_offset + __n;
-        // Add neighbour to the current __local_mem
-        if (__adjusted_global_id + __iters_per_work_item < __adjusted_n)
-        {
-            // Keep these statements in the same scope to allow for better memory alignment
-            typename _AccLocal::value_type __res = __unary_op(__adjusted_global_id, __acc...);
-            _ONEDPL_PRAGMA_UNROLL
-            for (_Size __i = 1; __i < __iters_per_work_item; ++__i)
-                __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i, __acc...));
-            __local_mem[__local_idx] = __res;
-        }
-        else if (__adjusted_global_id < __adjusted_n)
-        {
-            const _Size __items_to_process = __adjusted_n - __adjusted_global_id;
-            // Keep these statements in the same scope to allow for better memory alignment
-            typename _AccLocal::value_type __res = __unary_op(__adjusted_global_id, __acc...);
-            for (_Size __i = 1; __i < __items_to_process; ++__i)
-                __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i, __acc...));
-            __local_mem[__local_idx] = __res;
-        }
+        // Keep these statements in the same scope to allow for better memory alignment
+        _Tp __res = __unary_op(__adjusted_global_id, __acc...);
+        _ONEDPL_PRAGMA_UNROLL
+        for (_Size __i = 1; __i < __iters_per_work_item; ++__i)
+            __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i, __acc...));
+        return __res;
     }
 
     template <typename _NDItemId, typename _Size, typename _AccLocal, typename... _Acc>
@@ -233,26 +214,45 @@ struct transform_reduce
     operator()(const _NDItemId __item_id, const _Size __iters_per_work_item, const _Size __n,
                const _Size __global_offset, const _AccLocal& __local_mem, const _Acc&... __acc) const
     {
-        switch (__iters_per_work_item)
+        using _Tp = typename _AccLocal::value_type;
+        const auto __global_idx = __item_id.get_global_id(0);
+        const auto __local_idx = __item_id.get_local_id(0);
+        const _Size __adjusted_global_id = __global_offset + __iters_per_work_item * __global_idx;
+        const _Size __adjusted_n = __global_offset + __n;
+        // Apply __iters_per_work_item local reductions
+        if (__adjusted_global_id + __iters_per_work_item < __adjusted_n)
         {
-        case 1:
-            reduce_impl<1>(__item_id, __n, __global_offset, __local_mem, __acc...);
-            break;
-        case 2:
-            reduce_impl<2>(__item_id, __n, __global_offset, __local_mem, __acc...);
-            break;
-        case 4:
-            reduce_impl<4>(__item_id, __n, __global_offset, __local_mem, __acc...);
-            break;
-        case 8:
-            reduce_impl<8>(__item_id, __n, __global_offset, __local_mem, __acc...);
-            break;
-        case 16:
-            reduce_impl<16>(__item_id, __n, __global_offset, __local_mem, __acc...);
-            break;
-        case 32:
-            reduce_impl<32>(__item_id, __n, __global_offset, __local_mem, __acc...);
-            break;
+            switch (__iters_per_work_item)
+            {
+            case 1:
+                __local_mem[__local_idx] = reduce_impl<_Tp, 1>(__adjusted_global_id, __local_mem, __acc...);
+                break;
+            case 2:
+                __local_mem[__local_idx] = reduce_impl<_Tp, 2>(__adjusted_global_id, __local_mem, __acc...);
+                break;
+            case 4:
+                __local_mem[__local_idx] = reduce_impl<_Tp, 4>(__adjusted_global_id, __local_mem, __acc...);
+                break;
+            case 8:
+                __local_mem[__local_idx] = reduce_impl<_Tp, 8>(__adjusted_global_id, __local_mem, __acc...);
+                break;
+            case 16:
+                __local_mem[__local_idx] = reduce_impl<_Tp, 16>(__adjusted_global_id, __local_mem, __acc...);
+                break;
+            case 32:
+                __local_mem[__local_idx] = reduce_impl<_Tp, 32>(__adjusted_global_id, __local_mem, __acc...);
+                break;
+            }
+        }
+        // Apply __items_to_process local reductions
+        else if (__adjusted_global_id < __adjusted_n)
+        {
+            const _Size __items_to_process = __adjusted_n - __adjusted_global_id;
+            // Keep these statements in the same scope to allow for better memory alignment
+            _Tp __res = __unary_op(__adjusted_global_id, __acc...);
+            for (_Size __i = 1; __i < __items_to_process; ++__i)
+                __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i, __acc...));
+            __local_mem[__local_idx] = __res;
         }
     }
 };

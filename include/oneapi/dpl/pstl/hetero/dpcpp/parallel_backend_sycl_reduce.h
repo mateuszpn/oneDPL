@@ -45,6 +45,18 @@ class __reduce_mid_work_group_kernel;
 template <typename... _Name>
 class __reduce_kernel;
 
+template <typename _A, typename _B>
+::std::uint8_t
+__set_iters_per_work_item(_A __a, _B __b)
+{
+    _A __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__a, __b);
+    if (__iters_per_work_item > 16)
+        __iters_per_work_item = 32; // Empirically tested
+    else if (__iters_per_work_item > 2)
+        __iters_per_work_item = oneapi::dpl::__internal::__dpl_bit_ceil((::std::uint8_t)__iters_per_work_item);
+    return static_cast<::std::uint8_t>(__iters_per_work_item);
+}
+
 // Single work group kernel that transforms and reduces __n elements to the single result.
 template <typename _Tp, typename _NDItemId, typename _Size, typename _TransformPattern, typename _ReducePattern,
           typename _InitType, typename _AccLocal, typename _Res, typename... _Acc>
@@ -147,11 +159,7 @@ __parallel_transform_reduce_small_impl(_ExecutionPolicy&& __exec, const _Size __
     using _ReduceKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__reduce_small_kernel<_CustomName>>;
 
-    _Size __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size);
-    if (__iters_per_work_item > 16)
-        __iters_per_work_item = 32; // Empirically tested
-    else if (__iters_per_work_item > 2)
-        __iters_per_work_item = oneapi::dpl::__internal::__dpl_bit_ceil((::std::uint8_t)__iters_per_work_item);
+    _Size __iters_per_work_item = __set_iters_per_work_item(__n, __work_group_size);
 
     return __parallel_transform_reduce_small_submitter<_Tp, __work_group_size, _ReduceKernel>()(
         ::std::forward<_ExecutionPolicy>(__exec), __iters_per_work_item, __n, __reduce_op, __transform_op, __init,
@@ -272,15 +280,9 @@ __parallel_transform_reduce_mid_impl(_ExecutionPolicy&& __exec, _Size __n, _Redu
     using _ReduceWorkGroupKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_mid_work_group_kernel<_CustomName>>;
 
-    _Size __iters_per_work_item_device_kernel = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size);
-    if (__iters_per_work_item_device_kernel > 16)
-        __iters_per_work_item_device_kernel = 32; // Empirically tested
-    else if (__iters_per_work_item_device_kernel > 2)
-        __iters_per_work_item_device_kernel =
-            oneapi::dpl::__internal::__dpl_bit_ceil((::std::uint8_t)__iters_per_work_item_device_kernel);
-
-    _Size __iters_per_work_item_work_group_kernel = oneapi::dpl::__internal::__dpl_ceiling_div(
-        __n, __work_group_size * __iters_per_work_item_device_kernel * __work_group_size);
+    _Size __iters_per_work_item_device_kernel = __set_iters_per_work_item(__n, __work_group_size);
+    _Size __iters_per_work_item_work_group_kernel =
+        __set_iters_per_work_item(__n, __work_group_size * __iters_per_work_item_device_kernel * __work_group_size);
 
     // number of buffer elements processed within workgroup
     const _Size __size_per_work_group = __iters_per_work_item_device_kernel * __work_group_size;
@@ -326,11 +328,7 @@ struct __parallel_transform_reduce_impl
         __work_group_size = ::std::min(
             __work_group_size, (::std::uint16_t)oneapi::dpl::__internal::__kernel_work_group_size(__exec, __kernel));
 #endif
-        _Size __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size);
-        if (__iters_per_work_item > 16)
-            __iters_per_work_item = 32; // Empirically tested
-        else if (__iters_per_work_item > 2)
-            __iters_per_work_item = oneapi::dpl::__internal::__dpl_bit_ceil((::std::uint8_t)__iters_per_work_item);
+        _Size __iters_per_work_item = __set_iters_per_work_item(__n, __work_group_size);
 
         _Size __size_per_work_group =
             __iters_per_work_item * __work_group_size; // number of buffer elements processed within workgroup
