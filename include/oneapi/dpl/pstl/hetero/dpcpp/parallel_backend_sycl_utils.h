@@ -505,6 +505,14 @@ struct __usm_host_or_buffer_storage
     ::std::shared_ptr<_T> __usm_buf;
     bool __usm;
 
+    __usm_host_or_buffer_storage(_T&& __value) : __usm(false)
+    {
+        __sycl_buf = ::std::make_shared<__sycl_buffer_t>(__sycl_buffer_t(1));
+
+        sycl::host_accessor host_vals(*__sycl_buf, sycl::write_only);
+        host_vals[0] = std::forward<_T>(__value);
+    }
+
     // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a buffer instead.
     inline bool
     __use_USM_host_allocations(sycl::queue __queue)
