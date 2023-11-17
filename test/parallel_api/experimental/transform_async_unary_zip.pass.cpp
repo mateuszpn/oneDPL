@@ -80,8 +80,7 @@ template <typename Tin, typename Tout>
 void
 test()
 {
-    // TODO required to start from 0 when it will be implemented in __pattern_walk3_async and all other patterns
-    for (size_t n = 1; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         Sequence<Tin> in_a(n, [](std::int32_t k) { return k % 5 != 1 ? 3 * k - 7 : 0; });
         Sequence<Tin> in_b(n, [](std::int32_t k) { return 0; });

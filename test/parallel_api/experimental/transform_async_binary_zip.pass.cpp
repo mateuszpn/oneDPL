@@ -89,8 +89,7 @@ template <typename TInput1, typename TInput2, typename TOutput, typename Predica
 void
 test(Predicate pred)
 {
-    // TODO required to start from 0 when it will be implemented in __pattern_walk3_async and all other patterns
-    for (size_t n = 1; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         Sequence<TInput1> in1_a(n, [](size_t k) { return k % 5 != 1 ? TInput1(3 * k + 7) : 0; });
         Sequence<TInput1> in1_b(n, [](size_t k) { return 0; });
