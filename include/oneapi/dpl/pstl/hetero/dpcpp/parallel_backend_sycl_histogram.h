@@ -379,7 +379,7 @@ __histogram_general_local_transpose(_ExecutionPolicy&& __exec, const sycl::event
                                  {
                                      ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                                      __accum_local_no_atomics_iter<_histogram_index_type>(
-                                         __input, __val_idx, __local_histograms, __wgroup_idx * __num_bins, __func, __extra_SLM);
+                                         __input, __val_idx, __local_histograms, __self_lidx * __num_bins, __func, __extra_SLM);
                                  }
                              }
                              else
@@ -391,7 +391,7 @@ __histogram_general_local_transpose(_ExecutionPolicy&& __exec, const sycl::event
                                      if (__val_idx < __n)
                                      {
                                          __accum_local_no_atomics_iter<_histogram_index_type>(
-                                             __input, __val_idx, __local_histograms, __wgroup_idx * __num_bins, __func, __extra_SLM);
+                                             __input, __val_idx, __local_histograms, __self_lidx * __num_bins, __func, __extra_SLM);
                                      }
                                  }
                              }
