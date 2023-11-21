@@ -347,12 +347,11 @@ __histogram_general_local_transpose(_ExecutionPolicy&& __exec, const sycl::event
                                   ::std::uint16_t __work_group_size, _Range1&& __input, _Range2&& __bins,
                                   _Size __num_bins, _IdxHashFunc __func, _Range3&&... __opt_range)
 {
-    using _local_histogram_type = ::std::uint32_t;
+    using _local_histogram_type = ::std::uint8_t;
     using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
     using _histogram_index_type = ::std::uint16_t;
     using _extra_memory_type = typename _IdxHashFunc::extra_memory_type;
 
-    ::std::size_t __extra_SLM_elements = __func.get_required_SLM_elements();
     const ::std::size_t __n = __input.size();
     ::std::size_t __segments =
         oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
@@ -361,14 +360,12 @@ __histogram_general_local_transpose(_ExecutionPolicy&& __exec, const sycl::event
         oneapi::dpl::__ranges::__require_access(__h, __input, __bins, __opt_range...);
         // minimum type size for atomics
         __dpl_sycl::__local_accessor<_local_histogram_type> __local_histograms(sycl::range(__num_bins * __work_group_size), __h);
-        __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range(__extra_SLM_elements), __h);
         __h.parallel_for(sycl::nd_range<1>(__segments * __work_group_size, __work_group_size),
                          [=](sycl::nd_item<1> __self_item) {
                              constexpr auto _atomic_address_space = sycl::access::address_space::local_space;
                              const ::std::size_t __self_lidx = __self_item.get_local_id(0);
                              const ::std::uint32_t __wgroup_idx = __self_item.get_group(0);
                              const ::std::size_t __seg_start = __work_group_size * __wgroup_idx * __iters_per_work_item;
-                             __func.init_SLM_memory(__extra_SLM, __self_item);
 
                              __clear_witem_local_histograms(__local_histograms, __num_bins, __self_item);
 
@@ -379,7 +376,7 @@ __histogram_general_local_transpose(_ExecutionPolicy&& __exec, const sycl::event
                                  {
                                      ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                                      __accum_local_no_atomics_iter<_histogram_index_type>(
-                                         __input, __val_idx, __local_histograms, __self_lidx * __num_bins, __func, __extra_SLM);
+                                         __input, __val_idx, __local_histograms, __self_lidx * __num_bins, __func);
                                  }
                              }
                              else
@@ -391,7 +388,7 @@ __histogram_general_local_transpose(_ExecutionPolicy&& __exec, const sycl::event
                                      if (__val_idx < __n)
                                      {
                                          __accum_local_no_atomics_iter<_histogram_index_type>(
-                                             __input, __val_idx, __local_histograms, __self_lidx * __num_bins, __func, __extra_SLM);
+                                             __input, __val_idx, __local_histograms, __self_lidx * __num_bins, __func);
                                      }
                                  }
                              }
@@ -541,6 +538,8 @@ inline auto
 __parallel_histogram_sycl_impl(_ExecutionPolicy&& __exec, _Iter1 __first, _Iter1 __last, _Iter2 __histogram_first,
                                _Size __num_bins, _IdxHashFunc __func, _Range&&... __opt_range)
 {
+
+    using _private_SLM_histogram_type = ::std::uint8_t;
     using _private_histogram_type = ::std::uint16_t;
     using _local_histogram_type = ::std::uint32_t;
     using _global_histogram_type = typename ::std::iterator_traits<_Iter2>::value_type;
@@ -550,7 +549,7 @@ __parallel_histogram_sycl_impl(_ExecutionPolicy&& __exec, _Iter1 __first, _Iter1
 
     ::std::uint16_t __work_group_size = ::std::min(::std::size_t(1024), __max_wgroup_size);
 
-    ::std::uint16_t __reduced_work_group_size = ::std::min(::std::size_t(256), __max_wgroup_size);
+    ::std::uint16_t __reduced_work_group_size = ::std::min(::std::size_t(128), __max_wgroup_size);
 
     auto __local_mem_size = __exec.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
     constexpr ::std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
@@ -580,8 +579,7 @@ __parallel_histogram_sycl_impl(_ExecutionPolicy&& __exec, _Iter1 __first, _Iter1
                 ::std::forward<_ExecutionPolicy>(__exec), init_e, __work_group_size, input_buf.all_view(),
                 bins_buf.all_view(), __num_bins, __func, ::std::forward<_Range...>(__opt_range)...);
         }
-        else if ((__num_bins < __reduced_work_group_size) && (__num_bins * __reduced_work_group_size * sizeof(_local_histogram_type) +
-                     __func.get_required_SLM_elements() * sizeof(_extra_memory_type) <
+        else if ((__num_bins < __reduced_work_group_size) && (__num_bins * __reduced_work_group_size * sizeof(_private_SLM_histogram_type) <
                  __local_mem_size))
         {
             std::cout<<"local transpose, num_bins:"<<__num_bins<<std::endl;
