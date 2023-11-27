@@ -239,6 +239,7 @@ __histogram_general_registers_local_reduction(_ExecutionPolicy&& __exec, const s
                                               const _Size& __num_bins, _IdxHashFunc __func, _Range3&&... __opt_range)
 {
     const ::std::size_t __n = __input.size();
+    constexpr ::std::uint8_t __copies_in_SLM = 8;
     using _local_histogram_type = ::std::uint32_t;
     using _private_histogram_type = ::std::uint16_t;
     using _histogram_index_type = ::std::uint8_t;
@@ -251,15 +252,16 @@ __histogram_general_registers_local_reduction(_ExecutionPolicy&& __exec, const s
     return __exec.queue().submit([&](auto& __h) {
         __h.depends_on(__init_e);
         oneapi::dpl::__ranges::__require_access(__h, __input, __bins, __opt_range...);
-        __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range(__num_bins), __h);
+        __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range(__num_bins * __copies_in_SLM), __h);
         __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range(__extra_SLM_elements), __h);
         __h.parallel_for(sycl::nd_range<1>(__segments * __work_group_size, __work_group_size), [=](sycl::nd_item<1>
                                                                                                        __self_item) {
             const ::std::size_t __self_lidx = __self_item.get_local_id(0);
+            const ::std::size_t __self_lidx_SLM_copy = __self_lidx % __copies_in_SLM;
             const ::std::size_t __wgroup_idx = __self_item.get_group(0);
             const ::std::size_t __seg_start = __work_group_size * __iters_per_work_item * __wgroup_idx;
             __func.init_SLM_memory(__extra_SLM, __self_item);
-            __clear_wglocal_histograms(__local_histogram, 0, __num_bins, __self_item);
+            __clear_wglocal_histograms(__local_histogram, 0, __num_bins * __copies_in_SLM, __self_item);
             _private_histogram_type __histogram[__bins_per_work_item] = {0};
 
             if (__seg_start + __work_group_size * __iters_per_work_item < __n)
@@ -289,13 +291,21 @@ __histogram_general_registers_local_reduction(_ExecutionPolicy&& __exec, const s
             for (_histogram_index_type __k = 0; __k < __num_bins; __k++)
             {
                 __dpl_sycl::__atomic_ref<_local_histogram_type, sycl::access::address_space::local_space> __local_bin(
-                    __local_histogram[__k]);
+                    __local_histogram[__k + __self_lidx_SLM_copy * __num_bins]);
                 __local_bin += __histogram[__k];
             }
 
             __dpl_sycl::__group_barrier(__self_item);
 
-            __reduce_out_histograms<_bin_type, ::std::uint8_t>(__local_histogram, 0, __bins, __num_bins, __self_item);
+            if (__self_lidx < __num_bins)
+            {
+                _ONEDPL_PRAGMA_UNROLL
+                for (::std::uint8_t __k = 1; __k < __copies_in_SLM; __k++)
+                {
+                     __local_histogram[__self_lidx] += __local_histogram[ __k * __num_bins + __self_lidx];
+                }
+                __reduce_out_histograms<_bin_type, ::std::uint8_t>(__local_histogram, 0, __bins, __num_bins, __self_item);
+            }
         });
     });
 }
