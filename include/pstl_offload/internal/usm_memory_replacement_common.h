@@ -134,6 +134,12 @@ struct __block_header
 
 static_assert(__is_power_of_two(sizeof(__block_header)));
 
+void*
+__allocate_shared_for_device_large_alignment(__sycl_device_shared_ptr __device_ptr, std::size_t __size, std::size_t __alignment);
+
+void*
+__realloc_impl(void* __user_ptr, std::size_t __new_size);
+
 #if __linux__
 
 inline std::size_t
@@ -155,11 +161,11 @@ inline void*
 __allocate_shared_for_device(__sycl_device_shared_ptr __device_ptr, std::size_t __size, std::size_t __alignment)
 {
     assert(__device_ptr.__is_device_created());
-    // Unsupported alignment - impossible to guarantee that the returned pointer and memory header
-    // would be on the same memory page if the alignment for more than a memory page is requested
+    // Impossible to guarantee that the returned pointer and memory header would be on the same memory
+    // page if the alignment for more than a memory page is requested, so process this case specifically
     if (__alignment >= __get_memory_page_size())
     {
-        return nullptr;
+        return __allocate_shared_for_device_large_alignment(__device_ptr, __size, __alignment);
     }
 
     std::size_t __base_offset = std::max(__alignment, sizeof(__block_header));
@@ -193,71 +199,11 @@ __allocate_shared_for_device(__sycl_device_shared_ptr __device_ptr, std::size_t 
     return __ptr;
 }
 
-inline void*
-__original_realloc(void* __user_ptr, std::size_t __new_size)
-{
-    using __realloc_func_type = void* (*)(void*, std::size_t);
-
-    static __realloc_func_type __orig_realloc = __realloc_func_type(dlsym(RTLD_NEXT, "realloc"));
-    return __orig_realloc(__user_ptr, __new_size);
-}
-
-inline void
-__free_usm_pointer(__block_header* __header)
-{
-    assert(__header != nullptr);
-    __header->_M_uniq_const = 0;
-    sycl::context __context = __header->_M_device.__get_context();
-    __header->~__block_header();
-    sycl::free(__header->_M_original_pointer, __context);
-}
-
-inline void*
-__realloc_real_pointer(void* __user_ptr, std::size_t __new_size)
-{
-    assert(__user_ptr != nullptr);
-    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
-
-    void* __result = nullptr;
-
-    if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
-    {
-        if (__header->_M_requested_number_of_bytes >= __new_size)
-        {
-            // No need to reallocate memory, previously allocated number of bytes is enough to store __new_size
-            __result = __user_ptr;
-        }
-        else
-        {
-            // Reallocate __new_size
-            void* __new_ptr = __allocate_shared_for_device(__header->_M_device, __new_size, alignof(std::max_align_t));
-
-            if (__new_ptr != nullptr)
-            {
-                std::memcpy(__new_ptr, __user_ptr, __header->_M_requested_number_of_bytes);
-
-                // Free previously allocated memory
-                __free_usm_pointer(__header);
-                __result = __new_ptr;
-            }
-            else
-            {
-                errno = ENOMEM;
-            }
-        }
-    }
-    else
-    {
-        // __user_ptr is not a USM pointer, use original realloc function
-        __result = __original_realloc(__user_ptr, __new_size);
-    }
-    return __result;
-}
-
 static void*
 __internal_realloc(void* __user_ptr, std::size_t __new_size)
 {
-    return __user_ptr == nullptr ? std::malloc(__new_size) : __realloc_real_pointer(__user_ptr, __new_size);
+    // std::malloc() might be overloaded in per-TU overload, so keep it here
+    return __user_ptr == nullptr ? std::malloc(__new_size) : __realloc_impl(__user_ptr, __new_size);
 }
 
 #endif // __linux__
