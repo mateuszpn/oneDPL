@@ -242,8 +242,8 @@ struct reduce_over_group
     reduce_impl(const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
                 std::true_type /*has_known_identity*/) const
     {
-        auto __local_idx = __item_id.get_local_id(0);
-        auto __global_idx = __item_id.get_global_id(0);
+        const auto __local_idx = __item_id.get_local_id(0);
+        const _Size __global_idx = __item_id.get_global_id(0);
         if (__global_idx >= __n)
         {
             // Fill the rest of local buffer with init elements so each of inclusive_scan method could correctly work
@@ -258,9 +258,9 @@ struct reduce_over_group
     reduce_impl(const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
                 std::false_type /*has_known_identity*/) const
     {
-        auto __local_idx = __item_id.get_local_id(0);
-        auto __global_idx = __item_id.get_global_id(0);
-        auto __group_size = __item_id.get_local_range().size();
+        const auto __local_idx = __item_id.get_local_id(0);
+        const _Size __global_idx = __item_id.get_global_id(0);
+        const ::std::uint32_t __group_size = __item_id.get_local_range().size();
 
         for (::std::uint32_t __power_2 = 1; __power_2 < __group_size; __power_2 *= 2)
         {
@@ -721,7 +721,7 @@ struct __scan
     void operator()(_NDItemId __item, _Size __n, _AccLocal& __local_acc, const _InAcc& __acc, _OutAcc& __out_acc,
                     _WGSumsAcc& __wg_sums_acc, _SizePerWG __size_per_wg, _WGSize __wgroup_size,
                     _ItersPerWG __iters_per_wg,
-                    _InitType __init = __no_init_value<typename _InitType::__value_type>{}) const
+               _InitType __init = __no_init_value<typename _InitType::__value_type>{}) const
     {
         scan_impl(__item, __n, __local_acc, __acc, __out_acc, __wg_sums_acc, __size_per_wg, __wgroup_size,
                   __iters_per_wg, __init, __has_known_identity<_BinaryOperation, _Tp>{});

@@ -159,12 +159,12 @@ template <typename _Tp, ::std::uint16_t __work_group_size, ::std::uint8_t __iter
 struct __parallel_transform_reduce_device_kernel_submitter<_Tp, __work_group_size, __iters_per_work_item,
                                                            __internal::__optional_kernel_name<_KernelName...>>
 {
-    template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType,
+    template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp,
               oneapi::dpl::__internal::__enable_if_device_execution_policy<_ExecutionPolicy, int> = 0,
               typename... _Ranges>
     auto
     operator()(_ExecutionPolicy&& __exec, _Size __n, _ReduceOp __reduce_op, _TransformOp __transform_op,
-               _InitType __init, sycl::buffer<_Tp>& __temp, _Ranges&&... __rngs) const
+               sycl::buffer<_Tp>& __temp, _Ranges&&... __rngs) const
     {
         auto __transform_pattern =
             unseq_backend::transform_reduce<_ExecutionPolicy, __iters_per_work_item, _ReduceOp, _TransformOp>{
@@ -201,11 +201,11 @@ template <typename _Tp, ::std::uint16_t __work_group_size, ::std::uint8_t __iter
 struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, __work_group_size, __iters_per_work_item,
                                                                __internal::__optional_kernel_name<_KernelName...>>
 {
-    template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType,
+    template <typename _ExecutionPolicy, typename _Size, typename _ReduceOp, typename _InitType,
               oneapi::dpl::__internal::__enable_if_device_execution_policy<_ExecutionPolicy, int> = 0>
     auto
     operator()(_ExecutionPolicy&& __exec, sycl::event& __reduce_event, _Size __n, _ReduceOp __reduce_op,
-               _TransformOp __transform_op, _InitType __init, sycl::buffer<_Tp>& __temp) const
+               _InitType __init, sycl::buffer<_Tp>& __temp) const
     {
         using _NoOpFunctor = unseq_backend::walk_n<_ExecutionPolicy, oneapi::dpl::__internal::__no_op>;
         auto __transform_pattern =
@@ -274,12 +274,12 @@ __parallel_transform_reduce_mid_impl(_ExecutionPolicy&& __exec, _Size __n, _Redu
     sycl::event __reduce_event =
         __parallel_transform_reduce_device_kernel_submitter<_Tp, __work_group_size, __iters_per_work_item_device_kernel,
                                                             _ReduceDeviceKernel>()(
-            __exec, __n, __reduce_op, __transform_op, __init, __temp, ::std::forward<_Ranges>(__rngs)...);
+            __exec, __n, __reduce_op, __transform_op, __temp, ::std::forward<_Ranges>(__rngs)...);
 
     __n = __n_groups; // Number of preliminary results from the device kernel.
     return __parallel_transform_reduce_work_group_kernel_submitter<
         _Tp, __work_group_size, __iters_per_work_item_work_group_kernel, _ReduceWorkGroupKernel>()(
-        ::std::forward<_ExecutionPolicy>(__exec), __reduce_event, __n, __reduce_op, __transform_op, __init, __temp);
+        ::std::forward<_ExecutionPolicy>(__exec), __reduce_event, __n, __reduce_op, __init, __temp);
 }
 
 // General implementation using a tree reduction
