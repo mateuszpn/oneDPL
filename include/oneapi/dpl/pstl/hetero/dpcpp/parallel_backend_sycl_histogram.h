@@ -238,6 +238,59 @@ __reduce_out_histograms(const _HistAccessorIn& __in_histogram, const _OffsetT& _
     }
 }
 
+
+template <typename _FactorType, typename _HistAccessorIn, typename _OffsetT,
+          typename _HistAccessorOut, typename _Size>
+inline void
+__copy_out_histograms(const _HistAccessorIn& __in_histogram, const _HistAccessorOut& __out_histogram,
+                      const _OffsetT& __offset, _Size __num_bins, const sycl::nd_item<1>& __self_item)
+{
+    ::std::uint32_t __gSize = __self_item.get_local_range()[0];
+    ::std::uint32_t __self_lidx = __self_item.get_local_id(0);
+    _FactorType __factor = oneapi::dpl::__internal::__dpl_ceiling_div(__num_bins, __gSize);
+    _FactorType __k = 0;
+
+    for (; __k < __factor - 1; ++__k)
+    {
+        __out_histogram[__offset + __gSize * __k + __self_lidx] = __in_histogram[__gSize * __k + __self_lidx];
+    }
+    // residual
+    if (__gSize * __k + __self_lidx < __num_bins)
+    {
+        __out_histogram[__offset + __gSize * __k + __self_lidx] = __in_histogram[__gSize * __k + __self_lidx];
+    }
+}
+
+
+
+// template <typename... _KernelName>
+// struct __consolidate_output_histogram_submitter<__internal::__optional_kernel_name<_KernelName...>>
+// {
+//         return __exec.queue().submit([&](auto& __h) {
+//             __h.depends_on(__event_main);
+//             oneapi::dpl::__ranges::__require_access(__h, __bins);
+//             sycl::accessor __hacc_private{__private_histograms, __h, sycl::read};
+//             __h.template parallel_for<_KernelName...>(
+//                 sycl::nd_range<1>(16, 16),
+//                 [=](sycl::nd_item<1> __self_item) {
+//                     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
+                    
+//                     if (__self_lidx < __num_bins)
+//                     {
+//                         //TODO: tree based reduce
+//                         ::std::uint64_t __sum = __private_histograms[__self_lidx]
+//                         for (std::uint32_t __i = 1; __i < __segments; __i++)
+//                         {
+//                             __sum += __private_histograms[__i * __num_bins + __self_lidx];
+//                         }
+//                         __bins[__self_lidx] = __sum;
+//                     }
+//                 });
+//         }
+
+// }
+
+
 template <::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_item, typename _KernelName>
 struct __histogram_general_registers_local_reduction_submitter;
 
@@ -255,17 +308,23 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
         using _local_histogram_type = ::std::uint32_t;
         using _private_histogram_type = ::std::uint16_t;
         using _histogram_index_type = ::std::uint8_t;
-        using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
+        using _bin_type = ::std::uint32_t;
         using _extra_memory_type = typename _IdxHashFunc::extra_memory_type;
+
 
         ::std::size_t __extra_SLM_elements = __func.get_required_SLM_elements();
         ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
-        return __exec.queue().submit([&](auto& __h) {
+        auto __private_histograms =
+            oneapi::dpl::__par_backend_hetero::__buffer<_ExecutionPolicy, _bin_type>(__exec, __segments * __num_bins)
+                .get_buffer();
+        auto __event_main = __exec.queue().submit([&](auto& __h) {
             __h.depends_on(__init_e);
-            oneapi::dpl::__ranges::__require_access(__h, __input, __bins, __opt_range...);
+            oneapi::dpl::__ranges::__require_access(__h, __input, __opt_range...);
             __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range(__num_bins), __h);
             __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range(__extra_SLM_elements), __h);
+            sycl::accessor __hacc_private{__private_histograms, __h, sycl::write_only, sycl::no_init};
+
             __h.template parallel_for<_KernelName...>(
                 sycl::nd_range<1>(__segments * __work_group_size, __work_group_size),
                 [=](sycl::nd_item<1> __self_item) {
@@ -308,9 +367,29 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
                     }
 
                     __dpl_sycl::__group_barrier(__self_item);
-
-                    __reduce_out_histograms<_bin_type, ::std::uint8_t>(__local_histogram, 0, __bins, __num_bins,
+                    __copy_out_histograms<::std::uint8_t>(__local_histogram, __hacc_private, __wgroup_idx * __num_bins, __num_bins,
                                                                        __self_item);
+                });
+        });
+        return __exec.queue().submit([&](auto& __h) {
+            __h.depends_on(__event_main);
+            oneapi::dpl::__ranges::__require_access(__h, __bins);
+            sycl::accessor __hacc_private{__private_histograms, __h, sycl::read_only};
+            __h.template parallel_for<_KernelName...>(
+                sycl::nd_range<1>(16, 16),
+                [=](sycl::nd_item<1> __self_item) {
+                    const ::std::size_t __self_lidx = __self_item.get_local_id(0);
+                    
+                    if (__self_lidx < __num_bins)
+                    {
+                        //TODO: tree based reduce
+                        ::std::uint64_t __sum = __hacc_private[__self_lidx];
+                        for (std::uint32_t __i = 1; __i < __segments; __i++)
+                        {
+                            __sum += __hacc_private[__i * __num_bins + __self_lidx];
+                        }
+                        __bins[__self_lidx] = __sum;
+                    }
                 });
         });
     }
@@ -621,19 +700,19 @@ __parallel_histogram(_ExecutionPolicy&& __exec, _Iter1 __first, _Iter1 __last, _
     const auto __n = __last - __first;
 
     sycl::event __init_e{};
-    {
-        auto __keep_bins_w =
-            oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::write, _Iter2>();
-        auto __bins_buf_w = __keep_bins_w(__histogram_first, __histogram_first + __num_bins);
-        auto __bins_w = __bins_buf_w.all_view();
+    // {
+    //     auto __keep_bins_w =
+    //         oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::write, _Iter2>();
+    //     auto __bins_buf_w = __keep_bins_w(__histogram_first, __histogram_first + __num_bins);
+    //     auto __bins_w = __bins_buf_w.all_view();
 
-        auto __f = oneapi::dpl::__internal::fill_functor<_global_histogram_type>{_global_histogram_type{0}};
-        //fill histogram bins with zeros
+    //     auto __f = oneapi::dpl::__internal::fill_functor<_global_histogram_type>{_global_histogram_type{0}};
+    //     //fill histogram bins with zeros
 
-        __init_e = oneapi::dpl::__par_backend_hetero::__parallel_for(
-            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
-            unseq_backend::walk_n<_ExecutionPolicy, decltype(__f)>{__f}, __num_bins, ::std::move(__bins_w));
-    }
+    //     __init_e = oneapi::dpl::__par_backend_hetero::__parallel_for(
+    //         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
+    //         unseq_backend::walk_n<_ExecutionPolicy, decltype(__f)>{__f}, __num_bins, ::std::move(__bins_w));
+    // }
 
     auto __keep_bins_rw =
         oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read_write, _Iter2>();
