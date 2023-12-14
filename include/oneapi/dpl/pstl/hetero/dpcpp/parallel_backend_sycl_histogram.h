@@ -374,21 +374,40 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
         return __exec.queue().submit([&](auto& __h) {
             __h.depends_on(__event_main);
             oneapi::dpl::__ranges::__require_access(__h, __bins);
-            sycl::accessor __hacc_private{__private_histograms, __h, sycl::read_only};
+            sycl::accessor __hacc_private{__private_histograms, __h, sycl::read_write};
+            __dpl_sycl::__local_accessor<::std::uint64_t> __tree_accum(sycl::range(__work_group_size), __h);
             __h.template parallel_for<_KernelName...>(
-                sycl::nd_range<1>(16, 16),
+                sycl::nd_range<1>(__work_group_size, __work_group_size),
                 [=](sycl::nd_item<1> __self_item) {
                     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
-                    
+                    const ::std::uint32_t __threads_per_bin = ::std::min(__work_group_size / __num_bins, __segments);
+                    const ::std::size_t __assigned_bin = __self_lidx % __num_bins;
+                    const ::std::size_t __per_bin_idx = __self_lidx  / __num_bins;
+                    const ::std::uint32_t __adjusted_wgroup_size = __threads_per_bin * __num_bins;
+
+                    __tree_accum[__self_lidx] = 0;
+
+                    // Make sure we only have exact multiple of num_bins work_items participating
+                    if (__self_lidx > _adjusted_wgroup_size)
+                        return;
+
+                    for (::std::uint32_t __j = __self_lidx; __j < __num_bins * __segments; j +=__adjusted_wgroup_size)
+                    {
+                        __tree_accum[__self_lidx] += __hacc_private[__j];
+                    }
+
+                    for (::std::uint32_t __offset_accum = 1; __offset_accum < __threads_per_bin; __offset_accum*=2)
+                    {
+                        __dpl_sycl::__group_barrier(__self_item);
+
+                        if ((__per_bin_idx & (2 * __power_2 - 1)) == 0 && __per_bin_idx + __power_2 < __threads_per_bin)
+                        {
+                            __tree_accum[__self_lidx] += __tree_accum[__self_lidx + __offset_accum * __num_bins];
+                        }
+                    }
                     if (__self_lidx < __num_bins)
                     {
-                        //TODO: tree based reduce
-                        ::std::uint64_t __sum = __hacc_private[__self_lidx];
-                        for (std::uint32_t __i = 1; __i < __segments; __i++)
-                        {
-                            __sum += __hacc_private[__i * __num_bins + __self_lidx];
-                        }
-                        __bins[__self_lidx] = __sum;
+                        __bins[__self_lidx] = __tree_accum[__self_lidx];
                     }
                 });
         });
