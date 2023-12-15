@@ -371,6 +371,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
                                                                        __self_item);
                 });
         });
+//        std::cout<<"test, numbins= "<<std::size_t(__num_bins)<<" __n="<<__n<< " segments="<<__segments<<std::endl;
         return __exec.queue().submit([&](auto& __h) {
             __h.depends_on(__event_main);
             oneapi::dpl::__ranges::__require_access(__h, __bins);
@@ -380,18 +381,13 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
                 sycl::nd_range<1>(__work_group_size, __work_group_size),
                 [=](sycl::nd_item<1> __self_item) {
                     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
-                    const ::std::uint32_t __threads_per_bin = ::std::min(__work_group_size / __num_bins, __segments);
-                    const ::std::size_t __assigned_bin = __self_lidx % __num_bins;
+                    const ::std::uint32_t __threads_per_bin = ::std::min(::std::size_t(__work_group_size) / ::std::size_t(__num_bins), __segments);
                     const ::std::size_t __per_bin_idx = __self_lidx  / __num_bins;
                     const ::std::uint32_t __adjusted_wgroup_size = __threads_per_bin * __num_bins;
 
                     __tree_accum[__self_lidx] = 0;
 
-                    // Make sure we only have exact multiple of num_bins work_items participating
-                    if (__self_lidx > _adjusted_wgroup_size)
-                        return;
-
-                    for (::std::uint32_t __j = __self_lidx; __j < __num_bins * __segments; j +=__adjusted_wgroup_size)
+                    for (::std::uint32_t __j = __self_lidx; __j < __num_bins * __segments; __j +=__adjusted_wgroup_size)
                     {
                         __tree_accum[__self_lidx] += __hacc_private[__j];
                     }
@@ -400,11 +396,12 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
                     {
                         __dpl_sycl::__group_barrier(__self_item);
 
-                        if ((__per_bin_idx & (2 * __power_2 - 1)) == 0 && __per_bin_idx + __power_2 < __threads_per_bin)
+                        if ((__per_bin_idx & (2 * __offset_accum - 1)) == 0 && __self_lidx + __offset_accum * __num_bins < __adjusted_wgroup_size)
                         {
                             __tree_accum[__self_lidx] += __tree_accum[__self_lidx + __offset_accum * __num_bins];
                         }
                     }
+
                     if (__self_lidx < __num_bins)
                     {
                         __bins[__self_lidx] = __tree_accum[__self_lidx];
@@ -430,7 +427,6 @@ __histogram_general_registers_local_reduction(_ExecutionPolicy&& __exec, const s
     // unique kernel name to the policy for each call when using no-unamed-lambdas
     using _RegistersLocalReducName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __histo_kernel_register_local_red<_iters_per_work_item_t, _KernelBaseName>>;
-
     return __histogram_general_registers_local_reduction_submitter<__iters_per_work_item, __bins_per_work_item,
                                                                    _RegistersLocalReducName>()(
         ::std::forward<_ExecutionPolicy>(__exec), __init_e, __work_group_size, ::std::forward<_Range1>(__input),
@@ -644,7 +640,6 @@ __parallel_histogram_select_kernel(_ExecutionPolicy&& __exec, const sycl::event&
 
     auto __local_mem_size = __exec.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
     constexpr ::std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
-
     // if bins fit into registers, use register private accumulation
     if (__num_bins <= __max_work_item_private_bins)
     {
@@ -732,7 +727,6 @@ __parallel_histogram(_ExecutionPolicy&& __exec, _Iter1 __first, _Iter1 __last, _
     //         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
     //         unseq_backend::walk_n<_ExecutionPolicy, decltype(__f)>{__f}, __num_bins, ::std::move(__bins_w));
     // }
-
     auto __keep_bins_rw =
         oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read_write, _Iter2>();
     auto __bins_buf_rw = __keep_bins_rw(__histogram_first, __histogram_first + __num_bins);
