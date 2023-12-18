@@ -238,11 +238,11 @@ __reduce_out_histograms(const _HistAccessorIn& __in_histogram, const _OffsetT& _
     }
 }
 
-template <::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_item, typename _KernelName>
+template <::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_item, bool __is_one_wg, typename _KernelName>
 struct __histogram_general_registers_local_reduction_submitter;
 
-template <::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_item, typename... _KernelName>
-struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_item, __bins_per_work_item,
+template <::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_item, bool __is_one_wg, typename... _KernelName>
+struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_item, __bins_per_work_item, __is_one_wg,
                                                                __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _IdxHashFunc, typename... _Range3>
@@ -273,6 +273,12 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
                     const ::std::size_t __wgroup_idx = __self_item.get_group(0);
                     const ::std::size_t __seg_start = __work_group_size * __iters_per_work_item * __wgroup_idx;
                     __func.init_SLM_memory(__extra_SLM, __self_item);
+
+                    if constexpr(__is_one_wg)
+                    {
+                        __clear_wglocal_histograms(__bins, 0, __num_bins, __self_item);
+                    }
+
                     __clear_wglocal_histograms(__local_histogram, 0, __num_bins, __self_item);
                     _private_histogram_type __histogram[__bins_per_work_item] = {0};
 
@@ -316,7 +322,7 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
     }
 };
 
-template <::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_item, typename _ExecutionPolicy,
+template <::std::uint16_t __iters_per_work_item, ::std::uint8_t __bins_per_work_item,  bool __is_one_wg, typename _ExecutionPolicy,
           typename _Range1, typename _Range2, typename _IdxHashFunc, typename... _Range3>
 inline auto
 __histogram_general_registers_local_reduction(_ExecutionPolicy&& __exec, const sycl::event& __init_e,
@@ -326,24 +332,25 @@ __histogram_general_registers_local_reduction(_ExecutionPolicy&& __exec, const s
     using _KernelBaseName = typename ::std::decay_t<_ExecutionPolicy>::kernel_name;
 
     using _iters_per_work_item_t = ::std::integral_constant<::std::uint16_t, __iters_per_work_item>;
+    using __is_one_wg_t = ::std::integral_constant<bool, __is_one_wg>;
 
     // Required to include _iters_per_work_item_t in kernel name because we compile multiple kernels and decide between
     // them at runtime.  Other compile time arguments aren't required as it is the user's reponsibility to provide a
     // unique kernel name to the policy for each call when using no-unamed-lambdas
     using _RegistersLocalReducName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __histo_kernel_register_local_red<_iters_per_work_item_t, _KernelBaseName>>;
+        __histo_kernel_register_local_red<_iters_per_work_item_t, __is_one_wg_t, _KernelBaseName>>;
 
-    return __histogram_general_registers_local_reduction_submitter<__iters_per_work_item, __bins_per_work_item,
+    return __histogram_general_registers_local_reduction_submitter<__iters_per_work_item, __bins_per_work_item, __is_one_wg,
                                                                    _RegistersLocalReducName>()(
         ::std::forward<_ExecutionPolicy>(__exec), __init_e, __work_group_size, ::std::forward<_Range1>(__input),
         ::std::forward<_Range2>(__bins), __func, ::std::forward<_Range3...>(__opt_range)...);
 }
 
-template <::std::uint16_t __iters_per_work_item, typename _KernelName>
+template <::std::uint16_t __iters_per_work_item, bool __is_one_wg, typename _KernelName>
 struct __histogram_general_local_atomics_submitter;
 
-template <::std::uint16_t __iters_per_work_item, typename... _KernelName>
-struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
+template <::std::uint16_t __iters_per_work_item, bool __is_one_wg, typename... _KernelName>
+struct __histogram_general_local_atomics_submitter<__iters_per_work_item, __is_one_wg,
                                                    __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _IdxHashFunc, typename... _Range3>
@@ -376,6 +383,11 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                     const ::std::uint32_t __wgroup_idx = __self_item.get_group(0);
                     const ::std::size_t __seg_start = __work_group_size * __wgroup_idx * __iters_per_work_item;
                     __func.init_SLM_memory(__extra_SLM, __self_item);
+
+                    if constexpr(__is_one_wg)
+                    {
+                        __clear_wglocal_histograms(__bins, 0, __num_bins, __self_item);
+                    }
 
                     __clear_wglocal_histograms(__local_histogram, 0, __num_bins, __self_item);
 
@@ -411,7 +423,7 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
     }
 };
 
-template <::std::uint16_t __iters_per_work_item, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+template <::std::uint16_t __iters_per_work_item, bool __is_one_wg, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _IdxHashFunc, typename... _Range3>
 inline auto
 __histogram_general_local_atomics(_ExecutionPolicy&& __exec, const sycl::event& __init_e,
@@ -421,23 +433,24 @@ __histogram_general_local_atomics(_ExecutionPolicy&& __exec, const sycl::event& 
     using _KernelBaseName = typename ::std::decay_t<_ExecutionPolicy>::kernel_name;
 
     using _iters_per_work_item_t = ::std::integral_constant<::std::uint16_t, __iters_per_work_item>;
+    using __is_one_wg_t = ::std::integral_constant<bool, __is_one_wg>;
 
     // Required to include _iters_per_work_item_t in kernel name because we compile multiple kernels and decide between
     // them at runtime.  Other compile time arguments aren't required as it is the user's reponsibility to provide a
     // unique kernel name to the policy for each call when using no-unamed-lambdas
     using _LocalAtomicsName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __histo_kernel_local_atomics<_iters_per_work_item_t, _KernelBaseName>>;
+        __histo_kernel_local_atomics<_iters_per_work_item_t, __is_one_wg_t, _KernelBaseName>>;
 
-    return __histogram_general_local_atomics_submitter<__iters_per_work_item, _LocalAtomicsName>()(
+    return __histogram_general_local_atomics_submitter<__iters_per_work_item, __is_one_wg, _LocalAtomicsName>()(
         ::std::forward<_ExecutionPolicy>(__exec), __init_e, __work_group_size, ::std::forward<_Range1>(__input),
         ::std::forward<_Range2>(__bins), __func, ::std::forward<_Range3...>(__opt_range)...);
 }
 
-template <typename _KernelName>
+template <bool __is_one_wg, typename _KernelName>
 struct __histogram_general_private_global_atomics_submitter;
 
-template <typename... _KernelName>
-struct __histogram_general_private_global_atomics_submitter<__internal::__optional_kernel_name<_KernelName...>>
+template <bool __is_one_wg, typename... _KernelName>
+struct __histogram_general_private_global_atomics_submitter<__is_one_wg, __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _IdxHashFunc, typename... _Range3>
     inline auto
@@ -470,10 +483,16 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
             __h.template parallel_for<_KernelName...>(
                 sycl::nd_range<1>(__segments * __work_group_size, __work_group_size),
                 [=](sycl::nd_item<1> __self_item) {
+                    
                     constexpr auto _atomic_address_space = sycl::access::address_space::global_space;
                     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
                     const ::std::size_t __wgroup_idx = __self_item.get_group(0);
                     const ::std::size_t __seg_start = __work_group_size * __iters_per_work_item * __wgroup_idx;
+
+                    if constexpr(__is_one_wg)
+                    {
+                        __clear_wglocal_histograms(__bins, 0, __num_bins, __self_item);
+                    }
 
                     __clear_wglocal_histograms(__hacc_private, __wgroup_idx * __num_bins, __num_bins, __self_item);
 
@@ -507,7 +526,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         });
     }
 };
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _IdxHashFunc, typename... _Range3>
+template <bool __is_one_wg, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _IdxHashFunc, typename... _Range3>
 inline auto
 __histogram_general_private_global_atomics(_ExecutionPolicy&& __exec, const sycl::event& __init_e,
                                            ::std::uint16_t __min_iters_per_work_item, ::std::uint16_t __work_group_size,
@@ -515,11 +534,14 @@ __histogram_general_private_global_atomics(_ExecutionPolicy&& __exec, const sycl
                                            _Range3&&... __opt_range)
 {
     using _KernelBaseName = typename ::std::decay_t<_ExecutionPolicy>::kernel_name;
+    using __is_one_wg_t = ::std::integral_constant<bool, __is_one_wg>;
+
 
     using _GlobalAtomicsName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __histo_kernel_private_glocal_atomics<_KernelBaseName>>;
+        __histo_kernel_private_glocal_atomics<__is_one_wg_t, _KernelBaseName>>;
 
-    return __histogram_general_private_global_atomics_submitter<_GlobalAtomicsName>()(
+
+    return __histogram_general_private_global_atomics_submitter<__is_one_wg, _GlobalAtomicsName>()(
         ::std::forward<_ExecutionPolicy>(__exec), __init_e, __min_iters_per_work_item, __work_group_size,
         ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __func,
         ::std::forward<_Range3...>(__opt_range)...);
@@ -530,19 +552,17 @@ struct __hist_fill_zeros_wrapper
 {
 };
 
-template <::std::uint16_t __iters_per_work_item, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+template <::std::uint16_t __iters_per_work_item, bool __is_one_wg, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _IdxHashFunc, typename... _Range3>
 inline auto
 __parallel_histogram_select_kernel(_ExecutionPolicy&& __exec, const sycl::event& __init_e, _Range1&& __input,
-                                   _Range2&& __bins, _IdxHashFunc __func, _Range3&&... __opt_range)
+                                   _Range2&& __bins, _IdxHashFunc __func, ::std::uint16_t __work_group_size, _Range3&&... __opt_range)
 {
     using _private_histogram_type = ::std::uint16_t;
     using _local_histogram_type = ::std::uint32_t;
     using _extra_memory_type = typename _IdxHashFunc::extra_memory_type;
 
     const auto __num_bins = __bins.size();
-    ::std::size_t __max_wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
-    ::std::uint16_t __work_group_size = ::std::min(::std::size_t(1024), __max_wgroup_size);
 
     auto __local_mem_size = __exec.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
     constexpr ::std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
@@ -551,7 +571,7 @@ __parallel_histogram_select_kernel(_ExecutionPolicy&& __exec, const sycl::event&
     if (__num_bins <= __max_work_item_private_bins)
     {
         return __future(
-            __histogram_general_registers_local_reduction<__iters_per_work_item, __max_work_item_private_bins>(
+            __histogram_general_registers_local_reduction<__iters_per_work_item, __max_work_item_private_bins, __is_one_wg>(
                 ::std::forward<_ExecutionPolicy>(__exec), __init_e, __work_group_size, ::std::forward<_Range1>(__input),
                 ::std::forward<_Range2>(__bins), __func, ::std::forward<_Range3...>(__opt_range)...));
     }
@@ -560,7 +580,7 @@ __parallel_histogram_select_kernel(_ExecutionPolicy&& __exec, const sycl::event&
                  __func.get_required_SLM_elements() * sizeof(_extra_memory_type) <
              __local_mem_size)
     {
-        return __future(__histogram_general_local_atomics<__iters_per_work_item>(
+        return __future(__histogram_general_local_atomics<__iters_per_work_item, __is_one_wg>(
             ::std::forward<_ExecutionPolicy>(__exec), __init_e, __work_group_size, ::std::forward<_Range1>(__input),
             ::std::forward<_Range2>(__bins), __func, ::std::forward<_Range3...>(__opt_range)...));
     }
@@ -571,30 +591,30 @@ __parallel_histogram_select_kernel(_ExecutionPolicy&& __exec, const sycl::event&
         // suggestion which but global memory limitations may increase this value to be able to fit the workgroup
         // private copies of the histogram bins in global memory.  No unrolling is taken advantage of here because it
         // is a runtime argument.
-        return __future(__histogram_general_private_global_atomics(
+        return __future(__histogram_general_private_global_atomics<__is_one_wg>(
             ::std::forward<_ExecutionPolicy>(__exec), __init_e, __iters_per_work_item, __work_group_size,
             ::std::forward<_Range1>(__input), ::std::forward<_Range2>(__bins), __func,
             ::std::forward<_Range3...>(__opt_range)...));
     }
 }
 
-template <::std::uint16_t __iters_per_work_item, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+template <::std::uint16_t __iters_per_work_item, bool __is_one_wg, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _IdxHashFunc, typename... _Range3>
 inline auto
 __parallel_histogram_impl(_ExecutionPolicy&& __exec, const sycl::event& __init_e, _Range1&& __input, _Range2&& __bins,
-                          _IdxHashFunc __func, /*req_sycl_conversion = */ ::std::false_type, _Range3&&... __opt_range)
+                          _IdxHashFunc __func, ::std::uint16_t __work_group_size, /*req_sycl_conversion = */ ::std::false_type, _Range3&&... __opt_range)
 {
     //wrap binhash in a wrapper to allow shared memory boost where available
-    return __parallel_histogram_select_kernel<__iters_per_work_item>(
+    return __parallel_histogram_select_kernel<__iters_per_work_item, __is_one_wg>(
         ::std::forward<_ExecutionPolicy>(__exec), __init_e, ::std::forward<_Range1>(__input),
-        ::std::forward<_Range2>(__bins), __binhash_SLM_wrapper(__func), ::std::forward<_Range3...>(__opt_range)...);
+        ::std::forward<_Range2>(__bins), __binhash_SLM_wrapper(__func), __work_group_size, ::std::forward<_Range3...>(__opt_range)...);
 }
 
-template <::std::uint16_t __iters_per_work_item, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+template <::std::uint16_t __iters_per_work_item, bool __is_one_wg, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _Range3>
 inline auto
 __parallel_histogram_impl(_ExecutionPolicy&& __exec, const sycl::event& __init_e, _Range1&& __input, _Range2&& __bins,
-                          oneapi::dpl::__internal::__custom_range_binhash<_Range3> __func,
+                          oneapi::dpl::__internal::__custom_range_binhash<_Range3> __func, ::std::uint16_t __work_group_size,
                           /*req_sycl_conversion = */ ::std::true_type)
 {
     auto __range_to_upg = __func.get_range();
@@ -605,9 +625,9 @@ __parallel_histogram_impl(_ExecutionPolicy&& __exec, const sycl::event& __init_e
     auto __boundary_buf = __keep_boundaries(__range_to_upg.begin(), __range_to_upg.end());
     auto __boundary_view = __boundary_buf.all_view();
     auto __bin_hash = oneapi::dpl::__internal::__custom_range_binhash(__boundary_view);
-    return __parallel_histogram_impl<__iters_per_work_item>(
+    return __parallel_histogram_impl<__iters_per_work_item, __is_one_wg>(
         ::std::forward<_ExecutionPolicy>(__exec), __init_e, ::std::forward<_Range1>(__input),
-        ::std::forward<_Range2>(__bins), __bin_hash,
+        ::std::forward<_Range2>(__bins), __bin_hash, __work_group_size,
         /*req_sycl_conversion = */ ::std::false_type{}, __boundary_view);
 }
 
@@ -619,6 +639,10 @@ __parallel_histogram(_ExecutionPolicy&& __exec, _Iter1 __first, _Iter1 __last, _
 
     using _global_histogram_type = typename ::std::iterator_traits<_Iter2>::value_type;
     const auto __n = __last - __first;
+    ::std::size_t __max_wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__exec);
+    ::std::uint16_t __work_group_size = ::std::min(::std::size_t(1024), __max_wgroup_size);
+
+    bool __one_wg = __n <= 4 * 1024 * 1024 && __n > 0;
 
     // The access mode we we want here is "read_write" + no_init property to cover the reads required by the main
     //  kernel, but also to avoid copying the data in unnecessarily.  In practice, this "write" access mode should
@@ -628,13 +652,16 @@ __parallel_histogram(_ExecutionPolicy&& __exec, _Iter1 __first, _Iter1 __last, _
         oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::write, _Iter2>();
     auto __bins_buf = __keep_bins(__histogram_first, __histogram_first + __num_bins);
     auto __bins = __bins_buf.all_view();
+    sycl::event __init_e{};
+    if (!__one_wg)
+    {
+        auto __f = oneapi::dpl::__internal::fill_functor<_global_histogram_type>{_global_histogram_type{0}};
+        //fill histogram bins with zeros
 
-    auto __f = oneapi::dpl::__internal::fill_functor<_global_histogram_type>{_global_histogram_type{0}};
-    //fill histogram bins with zeros
-
-    auto __init_e = oneapi::dpl::__par_backend_hetero::__parallel_for(
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
-        unseq_backend::walk_n<_ExecutionPolicy, decltype(__f)>{__f}, __num_bins, __bins);
+        __init_e = oneapi::dpl::__par_backend_hetero::__parallel_for(
+            oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__hist_fill_zeros_wrapper>(__exec),
+            unseq_backend::walk_n<_ExecutionPolicy, decltype(__f)>{__f}, __num_bins, __bins);
+    }
 
     if (__n > 0)
     {
@@ -643,18 +670,18 @@ __parallel_histogram(_ExecutionPolicy&& __exec, _Iter1 __first, _Iter1 __last, _
         auto __input_buf = __keep_input(__first, __last);
 
         using _DoSyclConversion = typename _IdxHashFunc::req_sycl_range_conversion;
-        if (__n < 1048576)
+        if (__one_wg)
         {
-            __parallel_histogram_impl</*iters_per_workitem = */ 4>(::std::forward<_ExecutionPolicy>(__exec), __init_e,
-                                                                   __input_buf.all_view(), ::std::move(__bins), __func,
-                                                                   _DoSyclConversion{})
+            __parallel_histogram_impl</*iters_per_workitem = */ 32, true>(::std::forward<_ExecutionPolicy>(__exec), __init_e,
+                                                                   __input_buf.all_view(), ::std::move(__bins),
+                                                                   __func, __work_group_size, _DoSyclConversion{})
                 .wait();
         }
         else
         {
-            __parallel_histogram_impl</*iters_per_workitem = */ 32>(::std::forward<_ExecutionPolicy>(__exec), __init_e,
+            __parallel_histogram_impl</*iters_per_workitem = */ 32, false>(::std::forward<_ExecutionPolicy>(__exec), __init_e,
                                                                     __input_buf.all_view(), ::std::move(__bins), __func,
-                                                                    _DoSyclConversion{})
+                                                                    __work_group_size, _DoSyclConversion{})
                 .wait();
         }
     }
