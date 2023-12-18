@@ -716,7 +716,6 @@ __parallel_histogram(_ExecutionPolicy&& __exec, _Iter1 __first, _Iter1 __last, _
 
     if (__n > 0)
     {
-        std::cout<<"running kernel\n";
 
         auto __keep_input =
             oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read, _Iter1>();
