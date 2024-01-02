@@ -191,7 +191,7 @@ struct __init_processing
 
 // Load elements consecutively from global memory, transform them, and apply a local reduction. Each local result is
 // stored in local memory.
-template <typename _ExecutionPolicy, ::std::uint8_t __iters_per_work_item, typename _Operation1, typename _Operation2>
+template <typename _ExecutionPolicy, typename _Operation1, typename _Operation2>
 struct transform_reduce
 {
     _Operation1 __binary_op;
@@ -199,26 +199,24 @@ struct transform_reduce
 
     template <typename _NDItemId, typename _Size, typename _AccLocal, typename... _Acc>
     void
-    operator()(const _NDItemId __item_id, const _Size __n, const _Size __global_offset, const _AccLocal& __local_mem,
-               const _Acc&... __acc) const
+    operator()(::std::size_t __iters_per_work_item, const _NDItemId __item_id, const _Size __n,
+               const _AccLocal& __local_mem, const _Acc&... __acc) const
     {
         auto __global_idx = __item_id.get_global_id(0);
         auto __local_idx = __item_id.get_local_id(0);
-        const _Size __adjusted_global_id = __global_offset + __iters_per_work_item * __global_idx;
-        const _Size __adjusted_n = __global_offset + __n;
+        const _Size __adjusted_global_id = __iters_per_work_item * __global_idx;
         // Add neighbour to the current __local_mem
-        if (__adjusted_global_id + __iters_per_work_item < __adjusted_n)
+        if (__adjusted_global_id + (_Size)__iters_per_work_item < __n)
         {
             // Keep these statements in the same scope to allow for better memory alignment
             typename _AccLocal::value_type __res = __unary_op(__adjusted_global_id, __acc...);
-            _ONEDPL_PRAGMA_UNROLL
-            for (_Size __i = 1; __i < __iters_per_work_item; ++__i)
+            for (::std::size_t __i = 1; __i < __iters_per_work_item; ++__i)
                 __res = __binary_op(__res, __unary_op(__adjusted_global_id + __i, __acc...));
             __local_mem[__local_idx] = __res;
         }
-        else if (__adjusted_global_id < __adjusted_n)
+        else if (__adjusted_global_id < __n)
         {
-            const _Size __items_to_process = __adjusted_n - __adjusted_global_id;
+            const _Size __items_to_process = __n - __adjusted_global_id;
             // Keep these statements in the same scope to allow for better memory alignment
             typename _AccLocal::value_type __res = __unary_op(__adjusted_global_id, __acc...);
             for (_Size __i = 1; __i < __items_to_process; ++__i)
@@ -226,6 +224,12 @@ struct transform_reduce
             __local_mem[__local_idx] = __res;
         }
     }
+};
+
+enum class _RedType : bool
+{
+    __partial_red,
+    __final_red
 };
 
 // Reduce local reductions of each work item to a single reduced element per work group. The local reductions are held
@@ -239,15 +243,18 @@ struct reduce_over_group
     // Reduce on local memory with subgroups
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
+    reduce_impl(const _RedType __red_type, const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
                 std::true_type /*has_known_identity*/) const
     {
         const auto __local_idx = __item_id.get_local_id(0);
         const _Size __global_idx = __item_id.get_global_id(0);
-        if (__global_idx >= __n)
+        _Size __adjusted_idx = __global_idx;
+        if (__red_type == _RedType::__final_red)
+            __adjusted_idx = __local_idx;
+        // Fill the rest of local buffer with init elements so each of inclusive_scan method could correctly work
+        // for each work-item in sub-group
+        if (__adjusted_idx >= __n)
         {
-            // Fill the rest of local buffer with init elements so each of inclusive_scan method could correctly work
-            // for each work-item in sub-group
             __local_mem[__local_idx] = __known_identity<_BinaryOperation1, _Tp>;
         }
         return __dpl_sycl::__reduce_over_group(__item_id.get_group(), __local_mem[__local_idx], __bin_op1);
@@ -255,18 +262,21 @@ struct reduce_over_group
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
+    reduce_impl(const _RedType __red_type, const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
                 std::false_type /*has_known_identity*/) const
     {
         const auto __local_idx = __item_id.get_local_id(0);
         const _Size __global_idx = __item_id.get_global_id(0);
         const ::std::uint32_t __group_size = __item_id.get_local_range().size();
+        _Size __adjusted_idx = __global_idx;
+        if (__red_type == _RedType::__final_red)
+            __adjusted_idx = __local_idx;
 
         for (::std::uint32_t __power_2 = 1; __power_2 < __group_size; __power_2 *= 2)
         {
             __dpl_sycl::__group_barrier(__item_id);
             if ((__local_idx & (2 * __power_2 - 1)) == 0 && __local_idx + __power_2 < __group_size &&
-                __global_idx + __power_2 < __n)
+                __adjusted_idx + (_Size)__power_2 < __n)
             {
                 __local_mem[__local_idx] = __bin_op1(__local_mem[__local_idx], __local_mem[__local_idx + __power_2]);
             }
@@ -276,9 +286,11 @@ struct reduce_over_group
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    operator()(const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem) const
+    operator()(const _RedType __red_type, const _NDItemId __item_id, const _Size __n,
+               const _AccLocal& __local_mem) const
     {
-        return reduce_impl(__item_id, __n, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
+        // return reduce_impl(__red_type, __item_id, __n, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
+        return reduce_impl(__red_type, __item_id, __n, __local_mem, ::std::false_type{});
     }
 
     template <typename _InitType, typename _Result>
