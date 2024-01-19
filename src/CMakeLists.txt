@@ -25,11 +25,11 @@ if (NOT _ONEDPL_PSTL_OFFLOAD_BINARY_PATH)
 
     add_library(pstloffload SHARED ${CMAKE_CURRENT_SOURCE_DIR}/pstl_offload.cpp)
 
-    if (CMAKE_HOST_LINUX)
-        # have to put -fPIC after -fPIE to support linking when TLS is in use
-        set(COMPILE_FLAGS "-fPIE -fPIC -fstack-protector -Wremarks")
-    elseif (CMAKE_HOST_WIN32)
+    if (CMAKE_HOST_WIN32)
         set(COMPILE_FLAGS "/GS")
+    else()
+        # have to put -fPIC after -fPIE to support linking when TLS is in use
+        set(COMPILE_FLAGS -fPIE -fPIC -fstack-protector -Wremarks)
     endif()
 
     target_compile_options(pstloffload PRIVATE
