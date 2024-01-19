@@ -65,13 +65,18 @@ __original_realloc(void* __user_ptr, std::size_t __new_size)
 
 #elif _WIN64
 
-std::size_t __get_page_size();
+std::size_t
+__get_page_size();
 
-void* __original_realloc(void* __user_ptr, std::size_t __new_size);
-void* __original_malloc(std::size_t);
-void* __original_aligned_alloc(std::size_t size, std::size_t alignment);
+void*
+__original_realloc(void* __user_ptr, std::size_t __new_size);
+void*
+__original_malloc(std::size_t);
+void*
+__original_aligned_alloc(std::size_t size, std::size_t alignment);
 
-void* __aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::size_t __alignment);
+void*
+__aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::size_t __alignment);
 
 #endif
 
@@ -193,8 +198,8 @@ __internal_realloc(void* __user_ptr, std::size_t __new_size)
 static void*
 __internal_aligned_realloc(void* __user_ptr, std::size_t __new_size, std::size_t __alignment)
 {
-    return __user_ptr == nullptr ? _aligned_malloc(__new_size, __alignment) :
-        __aligned_realloc_real_pointer(__user_ptr, __new_size, __alignment);
+    return __user_ptr == nullptr ? _aligned_malloc(__new_size, __alignment)
+                                 : __aligned_realloc_real_pointer(__user_ptr, __new_size, __alignment);
 }
 #endif // _WIN64
 

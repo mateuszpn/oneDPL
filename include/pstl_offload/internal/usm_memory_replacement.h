@@ -126,8 +126,7 @@ __internal_aligned_alloc(std::size_t __size, std::size_t __alignment)
 
     if (__device != nullptr)
     {
-        __res = __allocate_shared_for_device(__device, __size,
-            __alignment? __alignment : alignof(std::max_align_t));
+        __res = __allocate_shared_for_device(__device, __size, __alignment ? __alignment : alignof(std::max_align_t));
     }
     else
     {
@@ -135,9 +134,9 @@ __internal_aligned_alloc(std::size_t __size, std::size_t __alignment)
 #if _WIN64
         // Under Windows, memory with extended alignment must not be released by free() function,
         // so have to use malloc() for non-extended alignment allocations.
-        __res = __alignment? __original_aligned_alloc(__alignment, __size) : __get_original_malloc()(__size);
+        __res = __alignment ? __original_aligned_alloc(__alignment, __size) : __original_malloc(__size);
 #else
-        __res = __original_aligned_alloc(__size, __alignment? __alignment : alignof(std::max_align_t));
+        __res = __original_aligned_alloc(__size, __alignment ? __alignment : alignof(std::max_align_t));
 #endif
     }
 
@@ -162,10 +161,10 @@ __errno_handling_internal_aligned_alloc(std::size_t __size, std::size_t __alignm
 static void*
 __internal_operator_new(std::size_t __size, std::size_t __alignment, bool __ext_alignment)
 {
-    // According to C++ standart "an alignment is ... the number of bytes between successive
+    // According to C++ standard "an alignment is ... the number of bytes between successive
     // addresses at which a given object can be allocated", so zero alignment is invalid.
     // Zero as __alignment value means that malloc (not aligned allocation) must be called
-    // in nested calls, this distiction is vital for Windows.
+    // in nested calls, this distinction is vital for Windows.
     if (__ext_alignment && !__alignment)
     {
         throw std::bad_alloc{};
@@ -191,7 +190,8 @@ __internal_operator_new(std::size_t __size, std::size_t __alignment, bool __ext_
 }
 
 static void*
-__internal_operator_new(std::size_t __size, std::size_t __alignment, bool __ext_alignment, const std::nothrow_t&) noexcept
+__internal_operator_new(std::size_t __size, std::size_t __alignment, bool __ext_alignment,
+                        const std::nothrow_t&) noexcept
 {
     void* __res = nullptr;
     try
