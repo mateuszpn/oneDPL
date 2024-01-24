@@ -125,7 +125,7 @@ DEFINE_TEST(test_for_each)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (for_each) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, "zip_iterator (for_each) not properly copyable");
         }
 
         ::std::for_each(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
@@ -163,7 +163,7 @@ DEFINE_TEST(test_for_each_structured_binding)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, 
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, 
                         "zip_iterator (structured_binding) not properly copyable");
         }
 
@@ -205,7 +205,7 @@ DEFINE_TEST(test_transform_reduce_unary)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (reduce_unary) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, "zip_iterator (reduce_unary) not properly copyable");
         }
 
         ::std::transform_reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1,
@@ -238,7 +238,7 @@ DEFINE_TEST(test_transform_reduce_binary)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (reduce_binary) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, "zip_iterator (reduce_binary) not properly copyable");
         }
 
         ::std::transform_reduce(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1,
@@ -280,7 +280,7 @@ DEFINE_TEST(test_min_element)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first)>, "zip_iterator (min_element) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first)>, "zip_iterator (min_element) not properly copyable");
         }
 
         auto tuple_result =
@@ -320,7 +320,7 @@ DEFINE_TEST(test_count_if)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first)>, "zip_iterator (count_if) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first)>, "zip_iterator (count_if) not properly copyable");
         }
 
         auto comp = [](ValueType const& value) { return value % 10 == 0; };
@@ -361,8 +361,8 @@ DEFINE_TEST(test_equal)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (equal1) not properly copyable");
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first2)>, "zip_iterator (equal2) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, "zip_iterator (equal1) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first2)>, "zip_iterator (equal2) not properly copyable");
         }
 
         bool is_equal = ::std::equal(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
@@ -411,9 +411,9 @@ DEFINE_TEST(test_equal_structured_binding)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>,
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>,
                         "zip_iterator (equal_structured_binding1) not properly copyable");
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first2)>,
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first2)>,
                         "zip_iterator (equal_structured_binding2) not properly copyable");
         }
 
@@ -469,7 +469,7 @@ DEFINE_TEST(test_find_if)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (find_if) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, "zip_iterator (find_if) not properly copyable");
         }
 
         auto f_for_last = [n](T1 x) { return x == n - 1; };
@@ -528,8 +528,8 @@ DEFINE_TEST(test_transform_inclusive_scan)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (inclusive_scan1) not properly copyable");
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first2)>, "zip_iterator (inclusive_scan2) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, "zip_iterator (inclusive_scan1) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first2)>, "zip_iterator (inclusive_scan2) not properly copyable");
         }
 
         auto value = T1(333);
@@ -569,7 +569,7 @@ DEFINE_TEST(test_unique)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (unique) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, "zip_iterator (unique) not properly copyable");
         }
 
         auto tuple_lastnew =
@@ -617,8 +617,8 @@ DEFINE_TEST(test_unique_copy)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (unique_copy1) not properly copyable");
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first2)>, "zip_iterator (unique_copy2) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, "zip_iterator (unique_copy1) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first2)>, "zip_iterator (unique_copy2) not properly copyable");
         }
 
         auto tuple_last2 = ::std::unique_copy(
@@ -683,9 +683,9 @@ DEFINE_TEST(test_merge)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>, "zip_iterator (merge1) not properly copyable");
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first2)>, "zip_iterator (merge2) not properly copyable");
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first3)>, "zip_iterator (merge3) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>, "zip_iterator (merge1) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first2)>, "zip_iterator (merge2) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first3)>, "zip_iterator (merge3) not properly copyable");
         }
 
         auto tuple_last3 = ::std::merge(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first1, tuple_last1, tuple_first2,
@@ -738,7 +738,7 @@ DEFINE_TEST(test_stable_sort)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first)>, "zip_iterator (stable_sort) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first)>, "zip_iterator (stable_sort) not properly copyable");
         }
 
         ::std::stable_sort(make_new_policy<new_kernel_name<Policy, 0>>(exec), tuple_first, tuple_last,
@@ -787,9 +787,9 @@ DEFINE_TEST(test_lexicographical_compare)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first1)>,
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first1)>,
                          "zip_iterator (lexicographical_compare1) not properly copyable");
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(tuple_first2)>,
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(tuple_first2)>,
                          "zip_iterator (lexicographical_compare2) not properly copyable");
         }
 
@@ -846,7 +846,7 @@ DEFINE_TEST(test_counting_zip_transform)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(start)>, "zip_iterator (counting_iterator1) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(start)>, "zip_iterator (counting_iterator1) not properly copyable");
         }
 
         // This usage pattern can be rewritten equivalently and more simply using zip_iterator and discard_iterator,
@@ -902,8 +902,8 @@ DEFINE_TEST(test_counting_zip_discard)
         //check device copyable only for usm iterator based data, it is not required or expected for sycl buffer data
         if (!this->host_buffering_required())
         {
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(start)>, "zip_iterator (discard_iterator1) not properly copyable");
-            EXPECT_TRUE(sycl::is_device_copyable_v<decltype(out)>, "zip_iterator (discard_iterator2) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(start)>, "zip_iterator (discard_iterator1) not properly copyable");
+            EXPECT_TRUE(::std::is_trivially_copyable_v<decltype(out)>, "zip_iterator (discard_iterator2) not properly copyable");
         }
 
         auto res = ::std::copy_if(make_new_policy<new_kernel_name<Policy, 0>>(exec), start, start + n, out, Assigner{});

@@ -401,7 +401,7 @@ class transform_iterator
 {
   private:
     _Iter __my_it_;
-    const _UnaryFunc __my_unary_func_;
+    _UnaryFunc __my_unary_func_;
 
   public:
     typedef typename ::std::iterator_traits<_Iter>::difference_type difference_type;
@@ -413,17 +413,7 @@ class transform_iterator
     transform_iterator() = default;
     transform_iterator(_Iter __it) : __my_it_(__it), __my_unary_func_() {}
     transform_iterator(_Iter __it, _UnaryFunc __unary_func) : __my_it_(__it), __my_unary_func_(__unary_func) {}
-    transform_iterator(const transform_iterator& __input) = default;
-    transform_iterator&
-    operator=(const transform_iterator& __input)
-    {
-        //TODO: Investigate making transform_iterator trivially_copyable. This custom copy assignment operator prevents
-        // transform_iterator, and therefore permutation_iterator from being trivially_copyable.  Not being trivially
-        // copyable makes their device_copyable trait deprecated in SYCL2020. However, defaulting this function implies
-        // an extra requirement that __my_unary_func_ implements a copy assignment operator.
-        __my_it_ = __input.__my_it_;
-        return *this;
-    }
+
     reference operator*() const { return __my_unary_func_(*__my_it_); }
     reference operator[](difference_type __i) const { return *(*this + __i); }
     transform_iterator&
