@@ -336,8 +336,8 @@ jobs:
           powershell $output = cmake --version; Write-Host ::warning::CMake: $output
           powershell $output = ${{ matrix.cxx_compiler }} --version; Write-Host ::warning::Compiler: $output
 
-            set ninja_targets="usm_memory_replacement.pass"
-            set ctest_flags=-R usm_memory_replacement.pass
+          set ninja_targets=build-onedpl-pstloffload_smoke_tests-tests
+          set ctest_flags= -L pstloffload_smoke_tests
 
           mkdir build && cd build
 

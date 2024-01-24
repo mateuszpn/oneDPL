@@ -17,6 +17,11 @@ add_subdirectory(kt)
 set (ranlux_24_48_test.pass_timeout_debug "900") # 15min
 set (ranlux_24_48_test.pass_timeout_release "720") # 12min
 
+# mark those tests with pstloffload_smoke_tests label
+set (pstloffload_smoke_tests adjacent_find.pass copy_move.pass merge.pass partial_sort.pass remove_copy.pass
+    transform_reduce.pass transform_reduce.pass.coal transform_scan.pass algorithm.pass
+    execution.pass functional.pass algorithms_redirection.pass usm_memory_replacement.pass)
+
 # If TBB headers are available, libstdc++ enables TBB backend; some TBB symbols become undefined unless it is linked.
 # The undefined symbol error arises only with GCC compiler.
 # There is no known way to limit the workaround to libstdc++ only.
@@ -163,10 +168,21 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
             COMMENT "Build and run test ${_test_name}")
 
         # Add labels and group targets
+        # Accumulate labels and set it once, as new value overwrites old
+        set(_test_labels "")
+
         file(RELATIVE_PATH _test_rel_path ${CMAKE_CURRENT_SOURCE_DIR} ${test_source_file})
         get_filename_component(_test_rel_path ${_test_rel_path} DIRECTORY)
         if (_test_rel_path)
             string(REPLACE "/" ";" _test_labels ${_test_rel_path})
+        endif()
+
+        list(FIND pstloffload_smoke_tests ${_test_name} _smoke_test_idx)
+        if (_smoke_test_idx GREATER -1)
+            list(APPEND _test_labels "pstloffload_smoke_tests")
+        endif()
+
+        if (_test_labels)
             set_tests_properties(${_test_name} PROPERTIES LABELS "${_test_labels}")
         endif()
 
