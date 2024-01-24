@@ -306,7 +306,7 @@ jobs:
             std: 17
             build_type: release
             backend: dpcpp
-            device_type: CPU
+            device_type: cpu
     steps:
       - uses: actions/checkout@v3
       - name: Install Intel® oneAPI Threading Building Blocks
