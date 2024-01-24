@@ -258,26 +258,8 @@ jobs:
           echo "::warning::CMake: $(cmake --version)"
           echo "::warning::Compiler: $(${{ matrix.cxx_compiler }} --version)"
 
-          make_targets=""
-          ctest_regex="^("
-
-          test_list="adjacent_find.pass copy_move.pass merge.pass partial_sort.pass remove_copy.pass \
-                     transform_reduce.pass transform_reduce.pass.coal transform_scan.pass algorithm.pass \
-                     execution.pass functional.pass algorithms_redirection.pass usm_memory_replacement.pass"
-
-          for test in $test_list
-          do
-            if [ -n "$make_targets" ]
-            then
-              make_targets+=" "
-              ctest_regex+="|"
-            fi
-
-            make_targets+="$test"
-            ctest_regex+="$test"
-          done
-
-          ctest_regex+=")"
+          make_targets="build-onedpl-pstloffload_smoke_tests-tests"
+          ctest_flags="-L pstloffload_smoke_tests"
 
           mkdir build && cd build
           lscpu
@@ -291,10 +273,10 @@ jobs:
 
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets}
 
-          ctest --timeout ${TEST_TIMEOUT} --output-on-failure -R ${ctest_regex}
+          ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags}
 
   windows-pstl-offload-testing:
-    name: ${{ matrix.device_type }},bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
+    name: PSTL offload ${{ matrix.device_type }},bknd=${{ matrix.backend }},cmplr=${{ matrix.cxx_compiler }},${{ matrix.os }},std=c++${{ matrix.std }},cfg=${{ matrix.build_type }}
     runs-on: ['${{ matrix.os }}']
     timeout-minutes: 60
     strategy:
