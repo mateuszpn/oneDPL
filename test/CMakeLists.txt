@@ -102,7 +102,7 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
     endif()
 
     if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off AND _use_release_in_debug)
-        # link with release runtime is not cupported for debug PSTL offload while one is requested, skip
+        # link with release runtime is not supported for debug PSTL offload while one is requested, skip
     else()
         # oneDPL test harness may initialize a C++ iterator using iterator with different type
         # that may break code when using Intel(R) C++ Compiler Classic with -O3 flag on Linux

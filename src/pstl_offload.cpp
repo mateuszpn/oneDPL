@@ -389,7 +389,7 @@ __do_functions_replacement()
     ret = DetourAttach(&(PVOID&)__original_aligned_realloc, __internal_aligned_realloc);
     if (NO_ERROR != ret)
     {
-        fprintf(stderr, "Failed function replacement: _aligned_msize replacement failed with %ld\n", ret);
+        fprintf(stderr, "Failed function replacement: _aligned_realloc replacement failed with %ld\n", ret);
         return false;
     }
 #pragma GCC diagnostic pop
