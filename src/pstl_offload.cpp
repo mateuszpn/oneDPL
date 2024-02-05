@@ -18,6 +18,17 @@
 #define _PSTL_OFFLOAD_BINARY_VERSION_MINOR 0
 #define _PSTL_OFFLOAD_BINARY_VERSION_PATCH 0
 
+/*
+Functions that allocates memory are replaced on per-TU base. For better reliability, releasing
+functions are globally replaced and checking origin of a releasing object to apply right releasing
+funtion. realloc can do both, so it must be both replaced on per-TU base and globally, but with
+different semantics in wrt newly allocated memory.
+
+Global replacement under Linux can be done during link-time or during load via LD_PRELOAD. Under
+Windows to implememnt global replacement the dynamic runtime is instrumented with help of Microsoft
+Detours.
+*/
+
 #if _WIN64
 
 #define WIN32_LEAN_AND_MEAN
