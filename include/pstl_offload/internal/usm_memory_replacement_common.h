@@ -69,8 +69,7 @@ __get_page_size();
 
 void*
 __original_realloc(void* __user_ptr, std::size_t __new_size);
-void*
-__original_malloc(std::size_t);
+void* __original_malloc(std::size_t);
 void*
 __original_aligned_alloc(std::size_t size, std::size_t alignment);
 
