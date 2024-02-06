@@ -155,7 +155,7 @@ static __free_func_type __original_free = free;
 #if _DEBUG
 static void (*__original_free_dbg)(void* userData, int blockType) = _free_dbg;
 #endif
-static __realloc_func_type __original_realloc = realloc;
+static __realloc_func_type __original_realloc_ptr = realloc;
 static __free_func_type __original_aligned_free = _aligned_free;
 static size_t (*__original_msize)(void *) = _msize;
 static size_t (*__original_aligned_msize)(void *, std::size_t alignment, std::size_t offset) = _aligned_msize;
@@ -183,12 +183,6 @@ static void
 __internal_free(void* __user_ptr)
 {
     __internal_free_param(__user_ptr, __original_free);
-}
-
-static auto
-__get_original_msize()
-{
-    return __original_msize;
 }
 
 #endif // _WIN64
@@ -311,22 +305,22 @@ __internal_free_dbg(void* __user_ptr, int __type)
 
 #endif // _DEBUG
 
-__malloc_func_type
-__get_original_malloc()
+void*
+__original_malloc(std::size_t size)
 {
-    return malloc;
+    return malloc(size);
 }
 
-__aligned_alloc_func_type
-__get_original_aligned_alloc()
+void*
+__original_aligned_alloc(std::size_t size, std::size_t alignment)
 {
-    return _aligned_malloc;
+    return _aligned_malloc(size, alignment);
 }
 
-__realloc_func_type
-__get_original_realloc()
+void*
+__original_realloc(void* __user_ptr, std::size_t __new_size)
 {
-    return __original_realloc;
+    return __original_realloc_ptr(__user_ptr, __new_size);
 }
 
 std::size_t
@@ -374,7 +368,7 @@ __do_functions_replacement()
         return false;
     }
 #endif
-    ret = DetourAttach(&(PVOID&)__original_realloc, __internal_realloc);
+    ret = DetourAttach(&(PVOID&)__original_realloc_ptr, __internal_realloc);
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: realloc replacement failed with %ld\n", ret);
