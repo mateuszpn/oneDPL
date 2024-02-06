@@ -14,7 +14,6 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cassert>
-#include <cstring>
 #include <limits>
 
 #if __linux__

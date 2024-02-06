@@ -20,13 +20,13 @@
 
 /*
 Functions that allocates memory are replaced on per-TU base. For better reliability, releasing
-functions are globally replaced and checking origin of a releasing object to apply right releasing
-funtion. realloc can do both, so it must be both replaced on per-TU base and globally, but with
-different semantics in wrt newly allocated memory.
+functions are replaced globally and an origin of a releasing object is checked to call right
+releasing function. realloc can do both allocation and releasing, so it must be both replaced
+on per-TU base and globally, but with different semantics in wrt newly allocated memory.
 
-Global replacement under Linux can be done during link-time or during load via LD_PRELOAD. Under
-Windows to implememnt global replacement the dynamic runtime is instrumented with help of Microsoft
-Detours.
+Global replacement under Linux is done during link-time or during load via LD_PRELOAD. To implememnt
+global replacement under Windows the dynamic runtime libraries are instrumented with help of
+Microsoft Detours.
 */
 
 #if _WIN64
@@ -340,6 +340,7 @@ __get_page_size()
 static bool
 __do_functions_replacement()
 {
+    // May fail, because process commonly not started with DetourCreateProcessWithDll*. Ignore it.
     DetourRestoreAfterWith();
 
     LONG ret = DetourTransactionBegin();
@@ -369,7 +370,7 @@ __do_functions_replacement()
     ret = DetourAttach(&(PVOID&)__original_free_dbg, __internal_free_dbg);
     if (NO_ERROR != ret)
     {
-        fprintf(stderr, "Failed function replacement: free_dbg replacement failed with %ld\n", ret);
+        fprintf(stderr, "Failed function replacement: _free_dbg replacement failed with %ld\n", ret);
         return false;
     }
 #endif
@@ -388,7 +389,7 @@ __do_functions_replacement()
     ret = DetourAttach(&(PVOID&)__original_msize, __internal_msize);
     if (NO_ERROR != ret)
     {
-        fprintf(stderr, "Failed function replacement: msize replacement failed with %ld\n", ret);
+        fprintf(stderr, "Failed function replacement: _msize replacement failed with %ld\n", ret);
         return false;
     }
     ret = DetourAttach(&(PVOID&)__original_aligned_msize, __internal_aligned_msize);
@@ -515,11 +516,11 @@ operator delete[](void* __ptr, std::align_val_t) noexcept
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-attributes"
-extern "C" BOOL WINAPI DllMain( HINSTANCE hInst, DWORD callReason, LPVOID reserved )
+extern "C" BOOL WINAPI DllMain(HINSTANCE hInst, DWORD callReason, LPVOID reserved)
 {
     BOOL ret = TRUE;
 
-    if ( callReason==DLL_PROCESS_ATTACH && reserved && hInst )
+    if (callReason==DLL_PROCESS_ATTACH && reserved && hInst)
     {
         ret = __pstl_offload::__do_functions_replacement()? TRUE : FALSE;
     }
