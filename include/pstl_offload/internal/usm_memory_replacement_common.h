@@ -14,12 +14,13 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cassert>
+#include <cstring> // for memcpy
 #include <limits>
 
 #if __linux__
 #include <dlfcn.h>
 #include <unistd.h>
-#endif
+#endif // __linux__
 
 namespace __pstl_offload
 {
@@ -43,7 +44,6 @@ struct __block_header
 static_assert(__is_power_of_two(sizeof(__block_header)));
 
 using __realloc_func_type = void* (*)(void*, std::size_t);
-using __aligned_alloc_func_type = void* (*)(std::size_t alignment, std::size_t size);
 
 #if __linux__
 
@@ -56,8 +56,6 @@ __get_page_size()
 inline void*
 __original_realloc(void* __user_ptr, std::size_t __new_size)
 {
-    using __realloc_func_type = void* (*)(void*, std::size_t);
-
     static __realloc_func_type __orig_realloc = __realloc_func_type(dlsym(RTLD_NEXT, "realloc"));
     return __orig_realloc(__user_ptr, __new_size);
 }

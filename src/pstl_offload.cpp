@@ -149,8 +149,6 @@ __internal_free(void* __user_ptr)
 
 #elif _WIN64
 
-using __malloc_func_type = void* (*)(std::size_t);
-
 static __free_func_type __original_free = free;
 #if _DEBUG
 static void (*__original_free_dbg)(void* userData, int blockType) = _free_dbg;
@@ -236,7 +234,8 @@ __internal_aligned_free(void* __user_ptr)
     __internal_free_param(__user_ptr, __original_aligned_free);
 }
 
-void* __aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::size_t __alignment)
+void*
+__aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::size_t __alignment)
 {
     assert(__user_ptr != nullptr);
 
