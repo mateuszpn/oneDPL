@@ -90,6 +90,11 @@ static allocs perform_allocations_impl() {
 }
 
 static void perform_deallocations_impl(const allocs& na) {
+#if __linux__
+    EXPECT_TRUE(malloc_usable_size(ptr) >= allocs::alloc_size, "Incorrect return value of malloc_usable_size");
+#elif _WIN64
+    EXPECT_TRUE(_msize(na.malloc_ptr) >= allocs::alloc_size, "Incorrect return value of _msize");
+#endif
     free(na.malloc_ptr);
     free(na.calloc_ptr);
     free(na.realloc_ptr);
@@ -102,6 +107,7 @@ static void perform_deallocations_impl(const allocs& na) {
     free(na.libc_realloc_ptr);
     free(na.libc_memalign_ptr);
 #elif _WIN64
+    EXPECT_TRUE(_aligned_msize(na.memalign_ptr, allocs::alignment, 0) >= allocs::alloc_size, "Invalid size reported by _aligned_msize");
     _aligned_free(na.memalign_ptr);
     _aligned_realloc(na.aligned_realloc_ptr, 0, 0);
 #endif // __linux__
