@@ -135,7 +135,8 @@ struct __block_header
 static_assert(__is_power_of_two(sizeof(__block_header)));
 
 void*
-__allocate_shared_for_device_large_alignment(__sycl_device_shared_ptr __device_ptr, std::size_t __size, std::size_t __alignment);
+__allocate_shared_for_device_large_alignment(__sycl_device_shared_ptr __device_ptr, std::size_t __size,
+                                             std::size_t __alignment);
 
 void*
 __realloc_impl(void* __user_ptr, std::size_t __new_size);
