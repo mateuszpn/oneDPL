@@ -42,7 +42,6 @@ template <class TSYCLQueueFactory>
 class sycl_queue_container
 {
   public:
-
     template <typename... Args>
     sycl::queue
     get_queue(Args&&... args)
@@ -86,26 +85,15 @@ class device_policy
   public:
     using kernel_name = KernelName;
 
-    device_policy()
-        : q_container(::std::make_shared<sycl_queue_container<TSyclQueueFactory>>())
-    {
-    }
+    device_policy() : q_container(::std::make_shared<sycl_queue_container<TSyclQueueFactory>>()) {}
 
     template <typename OtherName>
     device_policy(const device_policy<OtherName, TSyclQueueFactory>& other)
         : q_container(other.get_sycl_queue_container())
     {
     }
-    explicit device_policy(sycl::queue q_)
-        : device_policy()
-    {
-        q_container->get_queue(::std::move(q_));
-    }
-    explicit device_policy(sycl::device d_)
-        : device_policy()
-    {
-        q_container->get_queue(::std::move(d_));
-    }
+    explicit device_policy(sycl::queue q_) : device_policy() { q_container->get_queue(::std::move(q_)); }
+    explicit device_policy(sycl::device d_) : device_policy() { q_container->get_queue(::std::move(d_)); }
     operator sycl::queue() const { return queue(); }
     sycl::queue
     queue() const
@@ -113,7 +101,8 @@ class device_policy
         return q_container->get_queue();
     }
 
-    auto get_sycl_queue_container() const
+    auto
+    get_sycl_queue_container() const
     {
         return q_container;
     }
@@ -137,7 +126,6 @@ class device_policy
     }
 
   private:
-
     mutable sycl_queue_container_ptr<TSyclQueueFactory> q_container;
 };
 
