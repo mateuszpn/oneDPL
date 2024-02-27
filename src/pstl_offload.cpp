@@ -188,20 +188,26 @@ __internal_free(void* __user_ptr)
 static std::size_t
 __internal_msize(void* __user_ptr)
 {
-    std::size_t __res = 0;
-    if (__user_ptr != nullptr)
+    if (__user_ptr == nullptr)
     {
+#if _WIN64
+        errno = EINVAL;
+        return -1;
+#else
+        return 0;
+#endif
+    }
 
-        __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
+    std::size_t __res = 0;
+    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
 
-        if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
-        {
-            __res = __header->_M_requested_number_of_bytes;
-        }
-        else
-        {
-            __res = __original_msize(__user_ptr);
-        }
+    if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
+    {
+        __res = __header->_M_requested_number_of_bytes;
+    }
+    else
+    {
+        __res = __original_msize(__user_ptr);
     }
     return __res;
 }
@@ -209,21 +215,24 @@ __internal_msize(void* __user_ptr)
 #if _WIN64
 
 static std::size_t
-__internal_aligned_msize(void* __user_ptr, std::size_t alignment, std::size_t offset)
+__internal_aligned_msize(void* __user_ptr, std::size_t __alignment, std::size_t __offset)
 {
-    std::size_t __res = 0;
-    if (__user_ptr != nullptr)
+    if (__user_ptr == nullptr || !__is_power_of_two(__alignment))
     {
-        __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
+        errno = EINVAL;
+        return -1;
+    }
 
-        if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
-        {
-            __res = __header->_M_requested_number_of_bytes;
-        }
-        else
-        {
-            __res = __original_aligned_msize(__user_ptr, alignment, offset);
-        }
+    std::size_t __res = 0;
+    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
+
+    if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
+    {
+        __res = __header->_M_requested_number_of_bytes;
+    }
+    else
+    {
+        __res = __original_aligned_msize(__user_ptr, __alignment, __offset);
     }
     return __res;
 }
@@ -349,7 +358,7 @@ __do_functions_replacement()
         return false;
     }
 
-    // TODO: rarely-used _aligned_offset_* functions are not supported yet
+    // TODO: rarely-used _aligned_offset_* and _set*_invalid_parameter_handler functions are not supported yet
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmicrosoft-cast"
     ret = DetourAttach(&(PVOID&)__original_free, __internal_free);
@@ -376,7 +385,7 @@ __do_functions_replacement()
     ret = DetourAttach(&(PVOID&)__original_aligned_free, __internal_aligned_free);
     if (NO_ERROR != ret)
     {
-        fprintf(stderr, "Failed function replacement: aligned_free replacement failed with %ld\n", ret);
+        fprintf(stderr, "Failed function replacement: _aligned_free replacement failed with %ld\n", ret);
         return false;
     }
     ret = DetourAttach(&(PVOID&)__original_msize, __internal_msize);
