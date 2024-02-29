@@ -101,7 +101,8 @@ __parallel_transform_reduce(_ExecutionPolicy&& __exec, _ReduceOp __reduce_op, _T
                             _InitType __init, _Ranges&&... __rngs)
 {
     // workaround until we implement more performant version for patterns
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_Tp, _Commutative>(
+    return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_Tp, _Commutative,
+                                                                          /*vec_size*/ 4>(
         __exec.__device_policy(), __reduce_op, __transform_op, __init, ::std::forward<_Ranges>(__rngs)...);
 }
 
