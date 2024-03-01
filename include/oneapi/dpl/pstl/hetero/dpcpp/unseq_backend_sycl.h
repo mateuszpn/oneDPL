@@ -279,8 +279,8 @@ struct transform_reduce
 
     template <typename _NDItemId, typename _Size, typename _AccLocal, typename... _Acc>
     inline void
-    operator()(const _NDItemId& __item_id, const _Size& __n, const ::std::uint8_t& __iters_per_work_item,
-               const _Size& __global_offset, const _AccLocal& __local_mem, const _Acc&... __acc) const
+    operator()(const _NDItemId& __item_id, const _Size& __n, const ::std::size_t& __iters_per_work_item,
+               const _AccLocal& __local_mem, const _Acc&... __acc) const
     {
         using _Res = typename _AccLocal::value_type;
         auto __local_idx = __item_id.get_local_id(0);
@@ -292,55 +292,53 @@ struct transform_reduce
         }
         const _Size __local_range = __item_id.get_local_range(0);
         const _Size __no_vec_ops = __iters_per_work_item / _VecSize;
-        const _Size __adjusted_n = __global_offset + __n;
 
         _Size __stride = _VecSize; // sequential loads with _VecSize-wide vectors
         if constexpr (__use_nonseq_impl)
             __stride = __local_range * _VecSize; // coalesced loads with _VecSize-wide vectors
-        _Size __adjusted_global_id = __global_offset;
+        _Size __start_idx = 0;
         if constexpr (__use_nonseq_impl)
         {
-            __adjusted_global_id +=
+            __start_idx +=
                 __item_id.get_group_linear_id() * __local_range * __iters_per_work_item + __local_idx * _VecSize;
         }
         else
-            __adjusted_global_id += __iters_per_work_item * __global_idx;
+            __start_idx += __iters_per_work_item * __global_idx;
 
         bool __is_full = false;
         if constexpr (__use_nonseq_impl)
         {
-            if (__adjusted_global_id + __stride * (__no_vec_ops - 1) + _VecSize - 1 < __adjusted_n)
+            if (__start_idx + __stride * (__no_vec_ops - 1) + _VecSize - 1 < __n)
                 __is_full = true;
         }
         else
         {
-            if (__adjusted_global_id + __iters_per_work_item < __adjusted_n)
+            if (__start_idx + __iters_per_work_item < __n)
                 __is_full = true;
         }
 
         // _VecSize-wide vectorized path (__iters_per_work_item are multiples of _VecSize)
         if (__is_full)
         {
-            __local_mem[__local_idx] = full_reduction<_Res>(__adjusted_global_id, __no_vec_ops, __stride, __acc...);
+            __local_mem[__local_idx] = full_reduction<_Res>(__start_idx, __no_vec_ops, __stride, __acc...);
         }
         // At least one vector operation
-        else if (__adjusted_global_id + _VecSize - 1 < __adjusted_n)
+        else if (__start_idx + _VecSize - 1 < __n)
         {
-            __local_mem[__local_idx] =
-                partial_reduction<_Res>(__adjusted_global_id, __adjusted_n, __no_vec_ops, __stride, __acc...);
+            __local_mem[__local_idx] = partial_reduction<_Res>(__start_idx, __n, __no_vec_ops, __stride, __acc...);
         }
         // Scalar remainder
-        else if (__adjusted_global_id < __adjusted_n)
+        else if (__start_idx < __n)
         {
-            __local_mem[__local_idx] = scalar_reduction<_Res>(__adjusted_global_id, __adjusted_n, __acc...);
+            __local_mem[__local_idx] = scalar_reduction<_Res>(__start_idx, __n, __acc...);
         }
         return;
     }
 
     template <typename _Size>
     _Size
-    output_size(const _Size& __n, const ::std::uint16_t& __work_group_size,
-                const ::std::uint8_t& __iters_per_work_item) const
+    output_size(const _Size& __n, const ::std::size_t& __work_group_size,
+                const ::std::size_t& __iters_per_work_item) const
     {
         if (__iters_per_work_item == 1)
             return __n;
@@ -359,6 +357,12 @@ struct transform_reduce
     }
 };
 
+enum class _RedType : bool
+{
+    __partial_red,
+    __final_red
+};
+
 // Reduce local reductions of each work item to a single reduced element per work group. The local reductions are held
 // in local memory. sycl::reduce_over_group is used for supported data types and operations. All other operations are
 // processed in order and without a known identity.
@@ -370,15 +374,18 @@ struct reduce_over_group
     // Reduce on local memory with subgroups
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
+    reduce_impl(const _RedType __red_type, const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
                 std::true_type /*has_known_identity*/) const
     {
-        auto __local_idx = __item_id.get_local_id(0);
+        const auto __local_idx = __item_id.get_local_id(0);
         const _Size __global_idx = __item_id.get_global_id(0);
-        if (__global_idx >= __n)
+        _Size __adjusted_idx = __global_idx;
+        if (__red_type == _RedType::__final_red)
+            __adjusted_idx = __local_idx;
+        // Fill the rest of local buffer with init elements so each of inclusive_scan method could correctly work
+        // for each work-item in sub-group
+        if (__adjusted_idx >= __n)
         {
-            // Fill the rest of local buffer with init elements so each of inclusive_scan method could correctly work
-            // for each work-item in sub-group
             __local_mem[__local_idx] = __known_identity<_BinaryOperation1, _Tp>;
         }
         return __dpl_sycl::__reduce_over_group(__item_id.get_group(), __local_mem[__local_idx], __bin_op1);
@@ -386,18 +393,21 @@ struct reduce_over_group
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    reduce_impl(const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
+    reduce_impl(const _RedType __red_type, const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem,
                 std::false_type /*has_known_identity*/) const
     {
-        auto __local_idx = __item_id.get_local_id(0);
+        const auto __local_idx = __item_id.get_local_id(0);
         const _Size __global_idx = __item_id.get_global_id(0);
-        auto __group_size = __item_id.get_local_range().size();
+        const ::std::uint32_t __group_size = __item_id.get_local_range().size();
+        _Size __adjusted_idx = __global_idx;
+        if (__red_type == _RedType::__final_red)
+            __adjusted_idx = __local_idx;
 
         for (::std::uint32_t __power_2 = 1; __power_2 < __group_size; __power_2 *= 2)
         {
             __dpl_sycl::__group_barrier(__item_id);
             if ((__local_idx & (2 * __power_2 - 1)) == 0 && __local_idx + __power_2 < __group_size &&
-                __global_idx + __power_2 < __n)
+                __adjusted_idx + (_Size)__power_2 < __n)
             {
                 __local_mem[__local_idx] = __bin_op1(__local_mem[__local_idx], __local_mem[__local_idx + __power_2]);
             }
@@ -407,9 +417,11 @@ struct reduce_over_group
 
     template <typename _NDItemId, typename _Size, typename _AccLocal>
     _Tp
-    operator()(const _NDItemId __item_id, const _Size __n, const _AccLocal& __local_mem) const
+    operator()(const _RedType __red_type, const _NDItemId __item_id, const _Size __n,
+               const _AccLocal& __local_mem) const
     {
-        return reduce_impl(__item_id, __n, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
+        // return reduce_impl(__red_type, __item_id, __n, __local_mem, __has_known_identity<_BinaryOperation1, _Tp>{});
+        return reduce_impl(__red_type, __item_id, __n, __local_mem, ::std::false_type{});
     }
 
     template <typename _InitType, typename _Result>
