@@ -157,8 +157,8 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 
         using _Type = typename _InitType::__value_type;
 
-        auto __policy =
-            __par_backend_hetero::make_wrapped_policy<ExecutionPolicyWrapper>(::std::forward<_ExecutionPolicy>(__exec));
+        auto __policy = __par_backend_hetero::make_wrapped_policy<ExecutionPolicyWrapper>(
+            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec));
         using _NewExecutionPolicy = decltype(__policy);
 
         // Create temporary buffer
@@ -245,7 +245,7 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
     {
         return __internal::__except_handler([&__exec, __first, __last, __d_first, __d_last, &__op, __tag]() {
             auto __wrapped_policy = __par_backend_hetero::make_wrapped_policy<adjacent_difference_wrapper>(
-                ::std::forward<_ExecutionPolicy>(__exec));
+                _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec));
 
             __internal::__pattern_walk2_brick(__tag, __wrapped_policy, __first, __last, __d_first,
                                               __internal::__brick_copy<__hetero_tag<_BackendTag>, _ExecutionPolicy>{});
