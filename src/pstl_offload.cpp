@@ -159,6 +159,7 @@ static __free_func_type __original_aligned_free = _aligned_free;
 static size_t (*__original_msize)(void *) = _msize;
 static size_t (*__original_aligned_msize)(void *, std::size_t alignment, std::size_t offset) = _aligned_msize;
 static void* (*__original_aligned_realloc)(void *, std::size_t size, std::size_t alignment) = _aligned_realloc;
+static void* (*__original_expand)(void *, std::size_t size) = _expand;
 
 static void
 __internal_free_param(void* __user_ptr, __free_func_type __custom_free)
@@ -334,6 +335,13 @@ __original_realloc(void* __user_ptr, std::size_t __new_size)
     return __original_realloc_ptr(__user_ptr, __new_size);
 }
 
+static void*
+__internal_expand(void* /*__user_ptr*/, std::size_t /*__size*/)
+{
+    // do not support _expand()
+    return nullptr;
+}
+
 std::size_t
 __get_page_size()
 {
@@ -354,13 +362,9 @@ __do_functions_replacement()
         fprintf(stderr, "Failed function replacement: DetourTransactionBegin returns %ld\n", ret);
         return false;
     }
-    ret = DetourUpdateThread(GetCurrentThread());
-    if (NO_ERROR != ret)
-    {
-        fprintf(stderr, "Failed function replacement: DetourUpdateThread returns %ld\n", ret);
-        return false;
-    }
 
+    // Operators from delete family is implementd by compiler with call to appropriate free function.
+    // Those functions are in the dll and they are replaced, so no need to directly replaced delete.
     // TODO: rarely-used _aligned_offset_* and _set*_invalid_parameter_handler functions are not supported yet
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmicrosoft-cast"
@@ -407,6 +411,12 @@ __do_functions_replacement()
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: _aligned_realloc replacement failed with %ld\n", ret);
+        return false;
+    }
+    ret = DetourAttach(&(PVOID&)__original_expand, __internal_expand);
+    if (NO_ERROR != ret)
+    {
+        fprintf(stderr, "Failed function replacement: _expand replacement failed with %ld\n", ret);
         return false;
     }
 #pragma GCC diagnostic pop
