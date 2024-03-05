@@ -12,7 +12,7 @@
 
 // this header might be used for non-SYCL build as well, so isolate SYCL-dependent parts
 #if SYCL_LANGUAGE_VERSION
-#include <sycl/sycl.hpp>
+#    include <sycl/sycl.hpp>
 #endif
 #include <cstddef>
 #include <cstdlib>
@@ -25,11 +25,13 @@
 #include <unistd.h>
 #endif // __linux__
 
-namespace sycl {
-inline namespace _V1 {
+namespace sycl
+{
+inline namespace _V1
+{
 class device;
 }
-}
+} // namespace sycl
 
 namespace __pstl_offload
 {
@@ -56,7 +58,7 @@ static_assert(__is_power_of_two(sizeof(__block_header)));
 
 using __realloc_func_type = void* (*)(void*, std::size_t);
 
-#if __linux__
+#    if __linux__
 
 inline std::size_t
 __get_page_size()
@@ -71,7 +73,7 @@ __original_realloc(void* __user_ptr, std::size_t __new_size)
     return __orig_realloc(__user_ptr, __new_size);
 }
 
-#elif _WIN64
+#    elif _WIN64
 
 std::size_t
 __get_page_size();
@@ -85,7 +87,7 @@ __original_aligned_alloc(std::size_t size, std::size_t alignment);
 void*
 __aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::size_t __alignment);
 
-#endif
+#    endif
 
 inline std::size_t
 __get_memory_page_size()
@@ -95,7 +97,7 @@ __get_memory_page_size()
     return __memory_page_size;
 }
 
-#if __linux__
+#    if __linux__
 
 inline bool
 __same_memory_page(void* __ptr1, void* __ptr2)
@@ -111,12 +113,12 @@ __is_our_memory(void* __user_ptr)
     return __same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const;
 }
 
-#elif _WIN64
+#    elif _WIN64
 
 bool
 __is_our_memory(void* __user_ptr);
 
-#endif
+#    endif
 
 inline void*
 __allocate_shared_for_device(sycl::device* __device, std::size_t __size, std::size_t __alignment)
@@ -136,13 +138,13 @@ __allocate_shared_for_device(sycl::device* __device, std::size_t __size, std::si
         return nullptr;
     }
 
-#if __linux__
+#    if __linux__
     // Memory block allocated with sycl::aligned_alloc_shared should be aligned to at least sizeof(__block_header) * 2
     // to guarantee that header and header + sizeof(__block_header) (user pointer) would be placed in one memory page
     std::size_t __usm_alignment = __base_offset << 1;
-#elif _WIN64
+#    elif _WIN64
     std::size_t __usm_alignment = std::max(__alignment, alignof(std::max_align_t));
-#endif
+#    endif
 
     // Required number of bytes to store memory header and preserve alignment on returned pointer
     // usm_alignment bytes are reserved to store memory header
@@ -221,7 +223,7 @@ __internal_realloc(void* __user_ptr, std::size_t __new_size)
     return __user_ptr == nullptr ? std::malloc(__new_size) : __realloc_real_pointer(__user_ptr, __new_size);
 }
 
-#if _WIN64
+#    if _WIN64
 
 static void*
 __internal_aligned_realloc(void* __user_ptr, std::size_t __new_size, std::size_t __alignment)
@@ -229,7 +231,7 @@ __internal_aligned_realloc(void* __user_ptr, std::size_t __new_size, std::size_t
     return __user_ptr == nullptr ? _aligned_malloc(__new_size, __alignment)
                                  : __aligned_realloc_real_pointer(__user_ptr, __new_size, __alignment);
 }
-#endif // _WIN64
+#    endif // _WIN64
 
 #endif // SYCL_LANGUAGE_VERSION
 
