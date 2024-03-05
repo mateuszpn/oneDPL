@@ -13,6 +13,7 @@
 #include <sycl/sycl.hpp>
 
 #include <pstl_offload/internal/usm_memory_replacement_common.h>
+#include "pstl_offload_internal.h"
 
 #define _PSTL_OFFLOAD_BINARY_VERSION_MAJOR 1
 #define _PSTL_OFFLOAD_BINARY_VERSION_MINOR 0
@@ -164,10 +165,10 @@ __internal_free_param(void* __user_ptr, __free_func_type __custom_free)
 {
     if (__user_ptr != nullptr)
     {
-        __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
-
-        if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
+        if (__is_our_memory(__user_ptr))
         {
+            __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
+
             __free_usm_pointer(__header);
         }
         else
@@ -199,10 +200,11 @@ __internal_msize(void* __user_ptr)
     }
 
     std::size_t __res = 0;
-    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
 
-    if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
+    if (__is_our_memory(__user_ptr))
     {
+        __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
+
         __res = __header->_M_requested_number_of_bytes;
     }
     else
@@ -224,10 +226,11 @@ __internal_aligned_msize(void* __user_ptr, std::size_t __alignment, std::size_t 
     }
 
     std::size_t __res = 0;
-    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
 
-    if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
+    if (__is_our_memory(__user_ptr))
     {
+        __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
+
         __res = __header->_M_requested_number_of_bytes;
     }
     else
@@ -254,12 +257,12 @@ __aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::si
         return nullptr;
     }
 
-    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
-
     void* __result = nullptr;
 
-    if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
+    if (__is_our_memory(__user_ptr))
     {
+        __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
+
         if (__header->_M_requested_number_of_bytes == __new_size && (uintptr_t)__user_ptr % __alignment == 0)
         {
             __result = __user_ptr;
@@ -298,10 +301,10 @@ __internal_free_dbg(void* __user_ptr, int __type)
 {
     if (__user_ptr != nullptr)
     {
-        __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
-
-        if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
+        if (__is_our_memory(__user_ptr))
         {
+            __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
+
             __free_usm_pointer(__header);
         }
         else
@@ -418,6 +421,8 @@ __do_functions_replacement()
 }
 
 #endif // _WIN64
+
+__declspec(noinline) void dummy_function_call() {}
 
 } // namespace __pstl_offload
 
