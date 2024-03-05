@@ -254,6 +254,11 @@ public:
         }
 
         __spin_mutex::__scoped_lock l(__large_aligned_ptrs_map_mtx);
+        if (!_M_map)
+        {
+            // ctor of static object not yet run, so it can't be our pointer
+            return std::nullopt;
+        }
         auto __iter = _M_map->find(__ptr);
         if (__iter == _M_map->end())
         {
