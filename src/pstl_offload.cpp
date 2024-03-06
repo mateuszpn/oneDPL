@@ -363,7 +363,7 @@ __do_functions_replacement()
         return false;
     }
 
-    // Operators from delete family is implementd by compiler with call to appropriate free function.
+    // Operators from delete family is implemented by compiler with call to an appropriate free function.
     // Those functions are in the dll and they are replaced, so no need to directly replaced delete.
     // TODO: rarely-used _aligned_offset_* and _set*_invalid_parameter_handler functions are not supported yet
 #pragma GCC diagnostic push
