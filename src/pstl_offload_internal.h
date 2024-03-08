@@ -12,7 +12,10 @@
 
 namespace __pstl_offload
 {
-    void dummy_function_call();
+
+__declspec(noinline) bool
+__check_ownership_unsafe(void* __user_ptr);
+
 }
 
 #endif // _PSTL_OFFLOAD_INTERNAL_H

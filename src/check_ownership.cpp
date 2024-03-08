@@ -12,7 +12,6 @@
 #include <windows.h>
 #include <excpt.h>
 
-#include <pstl_offload/internal/usm_memory_replacement_common.h>
 #include "pstl_offload_internal.h"
 
 namespace __pstl_offload
@@ -23,13 +22,11 @@ bool
 __is_our_memory(void* __user_ptr)
 {
     bool __our;
-    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
 
     __try
     {
-        dummy_function_call();
-        __our = __header->_M_uniq_const == __uniq_type_const;
-        dummy_function_call();
+        // to generate a code for invalid access protection, __check_ownership_unsafe must not be inlined
+        __our = __check_ownership_unsafe(__user_ptr);
     }
     __except (GetExceptionCode() == STATUS_ACCESS_VIOLATION ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
     {

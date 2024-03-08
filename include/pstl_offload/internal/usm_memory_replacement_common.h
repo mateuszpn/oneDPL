@@ -10,10 +10,7 @@
 #ifndef _ONEDPL_PSTL_OFFLOAD_INTERNAL_USM_MEMORY_REPLACEMENT_COMMON_H
 #define _ONEDPL_PSTL_OFFLOAD_INTERNAL_USM_MEMORY_REPLACEMENT_COMMON_H
 
-// this header might be used for non-SYCL build as well, so isolate SYCL-dependent parts
-#if SYCL_LANGUAGE_VERSION
 #    include <sycl/sycl.hpp>
-#endif
 #include <cstddef>
 #include <cstdlib>
 #include <cassert>
@@ -53,8 +50,6 @@ struct __block_header
 }; // struct __block_header
 
 static_assert(__is_power_of_two(sizeof(__block_header)));
-
-#if SYCL_LANGUAGE_VERSION
 
 using __realloc_func_type = void* (*)(void*, std::size_t);
 
@@ -232,8 +227,6 @@ __internal_aligned_realloc(void* __user_ptr, std::size_t __new_size, std::size_t
                                  : __aligned_realloc_real_pointer(__user_ptr, __new_size, __alignment);
 }
 #    endif // _WIN64
-
-#endif // SYCL_LANGUAGE_VERSION
 
 } // namespace __pstl_offload
 
