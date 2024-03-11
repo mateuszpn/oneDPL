@@ -18,7 +18,7 @@
 namespace __pstl_offload
 {
 
-// have to keep in it separate TU, because sycl is incompatible with Structured Exception Handling
+// have to keep in it separate TU, because sycl is incompatible with SEH
 bool
 __is_our_memory(void* __user_ptr)
 {
