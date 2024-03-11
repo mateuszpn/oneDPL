@@ -10,5 +10,3 @@ EXPORTS
 ?__original_aligned_alloc@__pstl_offload@@YAPEAX_K0@Z
 ?__original_realloc@__pstl_offload@@YAPEAXPEAX_K@Z
 ?__aligned_realloc_real_pointer@__pstl_offload@@YAPEAXPEAX_K1@Z
-?__is_our_memory@__pstl_offload@@YA_NPEAX@Z
-

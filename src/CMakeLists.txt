@@ -23,22 +23,21 @@ if (NOT _ONEDPL_PSTL_OFFLOAD_BINARY_PATH)
     string(REGEX REPLACE ".*#define _PSTL_OFFLOAD_BINARY_VERSION_MINOR ([0-9]+).*" "\\1" _pstl_offload_version_minor "${_pstl_offload_version_info}")
     string(REGEX REPLACE ".*#define _PSTL_OFFLOAD_BINARY_VERSION_PATCH ([0-9]+).*" "\\1" _pstl_offload_version_patch "${_pstl_offload_version_info}")
 
+    add_library(pstloffload SHARED ${CMAKE_CURRENT_SOURCE_DIR}/pstl_offload.cpp)
+
     if (CMAKE_HOST_WIN32)
-        set(COMPILE_FLAGS /GS)
-        set(PLATFORM_SPECIFIC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/check_ownership.cpp)
+        set(COMPILE_FLAGS "/GS")
     else()
         # have to put -fPIC after -fPIE to support linking when TLS is in use
         set(COMPILE_FLAGS -fPIE -fPIC -fstack-protector -Wremarks)
     endif()
 
-    add_library(pstloffload SHARED ${CMAKE_CURRENT_SOURCE_DIR}/pstl_offload.cpp ${PLATFORM_SPECIFIC_FILES})
-
     target_compile_options(pstloffload PRIVATE
+                -fsycl
                 -Wall -Wextra -Wformat -Wformat-security -Werror
                 -mretpoline
                 ${COMPILE_FLAGS}
                 )
-    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/pstl_offload.cpp PROPERTIES COMPILE_FLAGS -fsycl)
 
     target_link_options(pstloffload PRIVATE -Wl,-z,relro)
 

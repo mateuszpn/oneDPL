@@ -162,11 +162,6 @@ int main() {
         EXPECT_TRUE(_msize(ptr) >= size, "Incorrect return value of _msize");
         free(ptr);
     }
-    // check that __is_our_memory() works with invalid pointers correctly
-    {
-        bool our = __pstl_offload::__is_our_memory((char*)nullptr + sizeof(__pstl_offload::__block_header) + 10);
-        EXPECT_TRUE(!our, "Broken ownership detection.");
-    }
 #endif // _WIN64
 
     test_new(size);
