@@ -430,15 +430,9 @@ __do_functions_replacement()
     return true;
 }
 
-__declspec(noinline) bool
-__check_ownership_unsafe(void* __user_ptr)
-{
-    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
-
-    return __header->_M_uniq_const == __uniq_type_const;
-}
-
 #endif // _WIN64
+
+__declspec(noinline) void dummy_function_call() {}
 
 } // namespace __pstl_offload
 
