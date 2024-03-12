@@ -153,12 +153,6 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
             endif()
         endif()
 
-        if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off AND WIN32)
-            # add path to pstloffload.dll and set SYCL_ENABLE_DEFAULT_CONTEXTS
-            string(REPLACE ";" "\;" ESCAPED_PATH "$ENV{PATH};${PROJECT_BINARY_DIR}/src")
-            list(APPEND _environment_value "SYCL_ENABLE_DEFAULT_CONTEXTS=1;PATH=${ESCAPED_PATH}")
-        endif()
-
         set_tests_properties(${_test_name} PROPERTIES ENVIRONMENT "${_environment_value}")
 
         add_custom_target(run-${_test_name}
