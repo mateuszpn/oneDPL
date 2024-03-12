@@ -26,17 +26,17 @@ if (NOT _ONEDPL_PSTL_OFFLOAD_BINARY_PATH)
     add_library(pstloffload SHARED ${CMAKE_CURRENT_SOURCE_DIR}/pstl_offload.cpp)
 
     if (CMAKE_HOST_WIN32)
-        set(COMPILE_FLAGS "/GS")
+        set(EXTRA_COMPILE_FLAGS "/GS")
     else()
         # have to put -fPIC after -fPIE to support linking when TLS is in use
-        set(COMPILE_FLAGS -fPIE -fPIC -fstack-protector -Wremarks)
+        set(EXTRA_COMPILE_FLAGS -fPIE -fPIC -fstack-protector -Wremarks)
     endif()
 
     target_compile_options(pstloffload PRIVATE
                 -fsycl
                 -Wall -Wextra -Wformat -Wformat-security -Werror
                 -mretpoline
-                ${COMPILE_FLAGS}
+                ${EXTRA_COMPILE_FLAGS}
                 )
 
     target_link_options(pstloffload PRIVATE -Wl,-z,relro)
