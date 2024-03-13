@@ -1458,12 +1458,14 @@ __pattern_partial_sort(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator _
     if (__last - __first < 2)
         return;
 
-    __par_backend_hetero::__parallel_partial_sort(
-        ::std::forward<_ExecutionPolicy>(__exec),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__first),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__mid),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__last), __comp)
-        .wait();
+    return __internal::__except_handler([&]() {
+        __par_backend_hetero::__parallel_partial_sort(
+            ::std::forward<_ExecutionPolicy>(__exec),
+            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__first),
+            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__mid),
+            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__last), __comp)
+            .wait();
+    }
 }
 
 //------------------------------------------------------------------------
@@ -1542,11 +1544,14 @@ __pattern_partial_sort_copy(_ExecutionPolicy&& __exec, _InIterator __first, _InI
 
         auto __buf_mid = __buf_first + __out_size;
 
-        __par_backend_hetero::__parallel_partial_sort(
-            __par_backend_hetero::make_wrapped_policy<__partial_sort_2>(__exec),
-            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_first),
-            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_mid),
-            __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_last), __comp);
+        __internal::__except_handler([&]() {
+            __par_backend_hetero::__parallel_partial_sort(
+                __par_backend_hetero::make_wrapped_policy<__partial_sort_2>(__exec),
+                __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_first),
+                __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_mid),
+                __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_last),
+                __comp);
+        }
 
         return __pattern_walk2(
             __par_backend_hetero::make_wrapped_policy<__copy_back>(::std::forward<_ExecutionPolicy>(__exec)),
