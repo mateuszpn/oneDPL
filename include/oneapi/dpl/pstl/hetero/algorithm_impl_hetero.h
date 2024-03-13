@@ -564,16 +564,18 @@ __pattern_adjacent_find(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator 
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf2 = __keep2(__first + 1, __last);
 
-    // TODO: in case of confilicting names
-    // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
-    bool result = __par_backend_hetero::__parallel_find_or(
-        ::std::forward<_ExecutionPolicy>(__exec), _Predicate{adjacent_find_fn<_BinaryPredicate>{__predicate}},
-        __par_backend_hetero::__parallel_or_tag{},
-        oneapi::dpl::__ranges::make_zip_view(__buf1.all_view(), __buf2.all_view()));
+    return __internal::__except_handler([&]() {
+        // TODO: in case of conflicting names
+        // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
+        bool result = __par_backend_hetero::__parallel_find_or(
+            ::std::forward<_ExecutionPolicy>(__exec), _Predicate{adjacent_find_fn<_BinaryPredicate>{__predicate}},
+            __par_backend_hetero::__parallel_or_tag{},
+            oneapi::dpl::__ranges::make_zip_view(__buf1.all_view(), __buf2.all_view()));
 
-    // inverted conditional because of
-    // reorder_predicate in glue_algorithm_impl.h
-    return result ? __first : __last;
+        // inverted conditional because of
+        // reorder_predicate in glue_algorithm_impl.h
+        return result ? __first : __last;
+    }
 }
 
 template <typename _ExecutionPolicy, typename _Iterator, typename _BinaryPredicate>
@@ -657,10 +659,12 @@ __pattern_any_of(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last,
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
-        __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>(
-            ::std::forward<_ExecutionPolicy>(__exec)),
-        _Predicate{__pred}, __par_backend_hetero::__parallel_or_tag{}, __buf.all_view());
+    return __internal::__except_handler([&]() {
+        return oneapi::dpl::__par_backend_hetero::__parallel_find_or(
+            __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>(
+                ::std::forward<_ExecutionPolicy>(__exec)),
+            _Predicate{__pred}, __par_backend_hetero::__parallel_or_tag{}, __buf.all_view());
+    }
 }
 
 //------------------------------------------------------------------------
@@ -683,12 +687,14 @@ __pattern_equal(_ExecutionPolicy&& __exec, _Iterator1 __first1, _Iterator1 __las
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator2>();
     auto __buf2 = __keep2(__first2, __last2);
 
-    // TODO: in case of confilicting names
-    // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
-    return !__par_backend_hetero::__parallel_find_or(
-        ::std::forward<_ExecutionPolicy>(__exec), _Predicate{equal_predicate<_Pred>{__pred}},
-        __par_backend_hetero::__parallel_or_tag{},
-        oneapi::dpl::__ranges::make_zip_view(__buf1.all_view(), __buf2.all_view()));
+    return __internal::__except_handler([&]() {
+        // TODO: in case of conflicting names
+        // __par_backend_hetero::make_wrapped_policy<__par_backend_hetero::__or_policy_wrapper>()
+        return !__par_backend_hetero::__parallel_find_or(
+            ::std::forward<_ExecutionPolicy>(__exec), _Predicate{equal_predicate<_Pred>{__pred}},
+            __par_backend_hetero::__parallel_or_tag{},
+            oneapi::dpl::__ranges::make_zip_view(__buf1.all_view(), __buf2.all_view()));
+    }
 }
 
 //------------------------------------------------------------------------
