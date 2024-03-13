@@ -44,10 +44,12 @@ transform_async(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIt
                 _ForwardIterator2 __result, _UnaryOperation __op, _Events&&... __dependencies)
 {
     wait_for_all(::std::forward<_Events>(__dependencies)...);
-    auto ret_val = oneapi::dpl::__internal::__pattern_walk2_async(
-        ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
-        oneapi::dpl::__internal::__transform_functor<_UnaryOperation>{::std::move(__op)});
-    return ret_val;
+
+    return __internal::__except_handler([&]() {
+        return oneapi::dpl::__internal::__pattern_walk2_async(
+            ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            oneapi::dpl::__internal::__transform_functor<_UnaryOperation>{::std::move(__op)});
+    }
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator,
