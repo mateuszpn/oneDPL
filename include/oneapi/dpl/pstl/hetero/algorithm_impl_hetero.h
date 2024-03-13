@@ -1275,8 +1275,11 @@ __stable_sort_with_projection(_ExecutionPolicy&& __exec, _Iterator __first, _Ite
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    __par_backend_hetero::__parallel_stable_sort(
-        ::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __comp, __proj).wait();
+    return __internal::__except_handler([&]() {
+        __par_backend_hetero::__parallel_stable_sort(::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(), __comp,
+                                                     __proj)
+            .wait();
+    }
 }
 
 template <typename _ExecutionPolicy, typename _Iterator, typename _Compare>

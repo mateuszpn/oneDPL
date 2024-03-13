@@ -93,8 +93,10 @@ sort_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Comp
     auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
     auto __buf = __keep(__first, __last);
 
-    return __par_backend_hetero::__parallel_stable_sort(::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
-                                                        __comp, oneapi::dpl::identity{});
+    return __internal::__except_handler([&]() {
+        return __par_backend_hetero::__parallel_stable_sort(::std::forward<_ExecutionPolicy>(__exec), __buf.all_view(),
+                                                            __comp, oneapi::dpl::identity{});
+    }
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class... _Events,
