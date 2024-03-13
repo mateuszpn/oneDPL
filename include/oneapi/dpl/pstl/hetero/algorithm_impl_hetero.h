@@ -940,12 +940,14 @@ __pattern_scan_copy(_ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _IteratorOrTuple>();
     auto __buf2 = __keep2(__output_first, __output_first + __n);
 
-    auto __res =
-        __par_backend_hetero::__parallel_scan_copy(::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(),
-                                                   __buf2.all_view(), __n, __create_mask_op, __copy_by_mask_op);
+    return __internal::__except_handler([&]() {
+        auto __res =
+            __par_backend_hetero::__parallel_scan_copy(::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(),
+                                                       __buf2.all_view(), __n, __create_mask_op, __copy_by_mask_op);
 
-    ::std::size_t __num_copied = __res.get();
-    return ::std::make_pair(__output_first + __n, __num_copied);
+        ::std::size_t __num_copied = __res.get();
+        return ::std::make_pair(__output_first + __n, __num_copied);
+    }
 }
 
 template <typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Predicate>
