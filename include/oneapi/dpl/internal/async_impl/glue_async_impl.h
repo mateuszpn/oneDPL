@@ -168,8 +168,11 @@ fill_async(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator
            _Events&&... __dependencies)
 {
     wait_for_all(::std::forward<_Events>(__dependencies)...);
-    return oneapi::dpl::__internal::__pattern_fill_async(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                                         __value);
+
+    return __internal::__except_handler([&]() {
+        return oneapi::dpl::__internal::__pattern_fill_async(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                                             __value);
+    }
 }
 
 // [async.transform_reduce]
