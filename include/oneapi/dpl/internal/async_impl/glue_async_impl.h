@@ -76,10 +76,12 @@ copy_async(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterato
            _Events&&... __dependencies)
 {
     wait_for_all(::std::forward<_Events>(__dependencies)...);
-    auto ret_val = oneapi::dpl::__internal::__pattern_walk2_brick_async(
-        ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
-        oneapi::dpl::__internal::__brick_copy<_ExecutionPolicy>{});
-    return ret_val;
+
+    return __internal::__except_handler([&]() {
+        return oneapi::dpl::__internal::__pattern_walk2_brick_async(
+            ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+            oneapi::dpl::__internal::__brick_copy<_ExecutionPolicy>{});
+    }
 }
 
 // [async.sort]
