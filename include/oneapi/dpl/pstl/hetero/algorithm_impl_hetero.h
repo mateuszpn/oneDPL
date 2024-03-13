@@ -1776,27 +1776,29 @@ __pattern_hetero_set_op(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutputIterator>();
     auto __buf3 = __keep3(__result, __result + __n1);
 
-    auto __result_size =
-        __par_backend_hetero::__parallel_transform_scan_base(
-            ::std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__ranges::make_zip_view(
-                __buf1.all_view(), __buf2.all_view(),
-                oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
-                    __mask_buf.get_buffer())),
-            __buf3.all_view(), __reduce_op, _InitType{},
-            // local scan
-            unseq_backend::__scan</*inclusive*/ ::std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _Assigner,
-                                  _MaskAssigner, decltype(__create_mask_op), _InitType>{
-                __reduce_op, __get_data_op, __assign_op, _MaskAssigner{}, __create_mask_op},
-            // scan between groups
-            unseq_backend::__scan</*inclusive=*/::std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _NoAssign,
-                                  _Assigner, _DataAcc, _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op,
-                                                                  __get_data_op},
-            // global scan
-            __copy_by_mask_op)
-            .get();
+    return __internal::__except_handler([&]() {
+        auto __result_size =
+            __par_backend_hetero::__parallel_transform_scan_base(
+                ::std::forward<_ExecutionPolicy>(__exec),
+                oneapi::dpl::__ranges::make_zip_view(
+                    __buf1.all_view(), __buf2.all_view(),
+                    oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
+                        __mask_buf.get_buffer())),
+                __buf3.all_view(), __reduce_op, _InitType{},
+                // local scan
+                unseq_backend::__scan</*inclusive*/ ::std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _Assigner,
+                                      _MaskAssigner, decltype(__create_mask_op), _InitType>{
+                    __reduce_op, __get_data_op, __assign_op, _MaskAssigner{}, __create_mask_op},
+                // scan between groups
+                unseq_backend::__scan</*inclusive=*/::std::true_type, _ExecutionPolicy, _ReduceOp, _DataAcc, _NoAssign,
+                                      _Assigner, _DataAcc, _InitType>{__reduce_op, __get_data_op, _NoAssign{},
+                                                                      __assign_op, __get_data_op},
+                // global scan
+                __copy_by_mask_op)
+                .get();
 
-    return __result + __result_size;
+        return __result + __result_size;
+    }
 }
 
 template <typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
