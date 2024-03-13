@@ -2954,13 +2954,15 @@ __pattern_merge(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _Ran
                 _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _RandomAccessIterator3 __d_first,
                 _Compare __comp, _IsVector __is_vector, /* is_parallel = */ ::std::true_type)
 {
-    __par_backend::__parallel_merge(
-        ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __d_first, __comp,
-        [__is_vector](_RandomAccessIterator1 __f1, _RandomAccessIterator1 __l1, _RandomAccessIterator2 __f2,
-                      _RandomAccessIterator2 __l2, _RandomAccessIterator3 __f3, _Compare __comp) {
-            return __internal::__brick_merge(__f1, __l1, __f2, __l2, __f3, __comp, __is_vector);
-        });
-    return __d_first + (__last1 - __first1) + (__last2 - __first2);
+    return __internal::__except_handler([&]() {
+        __par_backend::__parallel_merge(
+            ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __d_first, __comp,
+            [__is_vector](_RandomAccessIterator1 __f1, _RandomAccessIterator1 __l1, _RandomAccessIterator2 __f2,
+                          _RandomAccessIterator2 __l2, _RandomAccessIterator3 __f3, _Compare __comp) {
+                return __internal::__brick_merge(__f1, __l1, __f2, __l2, __f3, __comp, __is_vector);
+            });
+        return __d_first + (__last1 - __first1) + (__last2 - __first2);
+    }
 }
 
 //------------------------------------------------------------------------

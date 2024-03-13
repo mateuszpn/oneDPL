@@ -524,10 +524,12 @@ __pattern_merge(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2, _
     }
     else
     {
-        __par_backend_hetero::__parallel_merge(::std::forward<_ExecutionPolicy>(__exec),
-                                               ::std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2),
-                                               ::std::forward<_Range3>(__rng3), __comp)
-            .wait();
+        __internal::__except_handler([&]() {
+            __par_backend_hetero::__parallel_merge(::std::forward<_ExecutionPolicy>(__exec),
+                                                   ::std::forward<_Range1>(__rng1), ::std::forward<_Range2>(__rng2),
+                                                   ::std::forward<_Range3>(__rng3), __comp)
+                .wait();
+        }
     }
 
     return __n;
