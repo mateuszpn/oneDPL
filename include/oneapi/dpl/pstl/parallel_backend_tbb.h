@@ -54,38 +54,54 @@ namespace __tbb_backend
 not an initialize array, because initialization/destruction
 would make the span be at least O(N). */
 // tbb::allocator can improve performance in some cases.
-template <typename _ExecutionPolicy, typename _Tp>
+template <typename _ExecutionPolicy, typename _Tp,
+          template <typename _Tp> typename _TAllocator>
 class __buffer_impl
 {
-    tbb::tbb_allocator<_Tp> _M_allocator;
-    _Tp* _M_ptr;
-    const ::std::size_t _M_buf_size;
-    __buffer_impl(const __buffer_impl&) = delete;
-    void
-    operator=(const __buffer_impl&) = delete;
+    struct __buffer_data
+    {
+        _TAllocator<_Tp> __allocator_;
+        _Tp* __allocated_mem = nullptr;
+        const ::std::size_t __buf_size_ = 0;
+
+        __buffer_data(std::size_t __n) : __allocator_(), __allocated_mem(__allocator_.allocate(__n)), __buf_size_(__n)
+        {
+        }
+    };
+    struct __buffer_data_custom_deleter
+    {
+        void
+        operator()(__buffer_data* pData)
+        {
+            if (pData != nullptr)
+                pData->__allocator_.deallocate(pData->__allocated_mem, __ptr_->__buf_size_);
+        }
+    };
+    using __data_ptr_t = ::std::unique_ptr<__buffer_data, __buffer_data_custom_deleter>;
+    __data_ptr_t __ptr;
 
   public:
     static_assert(::std::is_same_v<_ExecutionPolicy, ::std::decay_t<_ExecutionPolicy>>);
 
     //! Try to obtain buffer of given size to store objects of _Tp type
-    __buffer_impl(_ExecutionPolicy /*__exec*/, const ::std::size_t __n)
-        : _M_allocator(), _M_ptr(_M_allocator.allocate(__n)), _M_buf_size(__n)
+    __buffer_impl(_ExecutionPolicy /*__exec*/, const ::std::size_t __n) : __ptr(::std::make_unique(__n))
     {
     }
-    //! True if buffer was successfully obtained, zero otherwise.
-    operator bool() const { return _M_ptr != nullptr; }
+
     //! Return pointer to buffer, or nullptr if buffer could not be obtained.
     _Tp*
     get() const
     {
-        return _M_ptr;
+        return __ptr_->__allocated_mem;
     }
-    //! Destroy buffer
-    ~__buffer_impl() { _M_allocator.deallocate(_M_ptr, _M_buf_size); }
+
+    //! True if buffer was successfully obtained, zero otherwise.
+    operator bool() const { return get() != nullptr; }
 };
 
-template <typename _ExecutionPolicy, typename _Tp>
-using __buffer = __buffer_impl<::std::decay_t<_ExecutionPolicy>, _Tp>;
+template <typename _ExecutionPolicy, typename _Tp,
+          template <typename _Tp> typename _TAllocator = tbb::tbb_allocator<_Tp>>
+using __buffer = __buffer_impl<::std::decay_t<_ExecutionPolicy>, _Tp, _TAllocator>;
 
 // Wrapper for tbb::task
 inline void

@@ -57,36 +57,51 @@ __cancel_execution(oneapi::dpl::__internal::__omp_backend_tag)
 // raw buffer
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _Tp>
+template <typename _ExecutionPolicy, typename _Tp,
+          template <typename _Tp> typename _TAllocator>
 class __buffer_impl
 {
-    std::allocator<_Tp> __allocator_;
-    _Tp* __ptr_;
-    const std::size_t __buf_size_;
-    __buffer_impl(const __buffer_impl&) = delete;
-    void
-    operator=(const __buffer_impl&) = delete;
+    struct __buffer_data
+    {
+        _TAllocator<_Tp> __allocator_;
+        _Tp* __allocated_mem = nullptr;
+        const ::std::size_t __buf_size_ = 0;
+
+        __buffer_data(std::size_t __n) : __allocator_(), __allocated_mem(__allocator_.allocate(__n)), __buf_size_(__n)
+        {
+        }
+    };
+    struct __buffer_data_custom_deleter
+    {
+        void
+        operator()(__buffer_data* pData)
+        {
+            if (pData != nullptr)
+                pData->__allocator_.deallocate(pData->__allocated_mem, __ptr_->__buf_size_);
+        }
+    };
+    using __data_ptr_t = ::std::unique_ptr<__buffer_data, __buffer_data_custom_deleter>;
+    __data_ptr_t __ptr;
 
   public:
     static_assert(::std::is_same_v<_ExecutionPolicy, ::std::decay_t<_ExecutionPolicy>>);
 
-    __buffer_impl(_ExecutionPolicy /*__exec*/, std::size_t __n)
-        : __allocator_(), __ptr_(__allocator_.allocate(__n)), __buf_size_(__n)
+    __buffer_impl(_ExecutionPolicy /*__exec*/, std::size_t __n) : __ptr(::std::make_unique(__n))
     {
     }
-
-    operator bool() const { return __ptr_ != nullptr; }
 
     _Tp*
     get() const
     {
-        return __ptr_;
+        return __ptr_->__allocated_mem;
     }
-    ~__buffer_impl() { __allocator_.deallocate(__ptr_, __buf_size_); }
+
+    operator bool() const { return get() != nullptr; }
 };
 
-template <typename _ExecutionPolicy, typename _Tp>
-using __buffer = __buffer_impl<::std::decay_t<_ExecutionPolicy>, _Tp>;
+template <typename _ExecutionPolicy, typename _Tp,
+          template <typename _Tp> typename _TAllocator = ::std::allocator<_Tp>>
+using __buffer = __buffer_impl<::std::decay_t<_ExecutionPolicy>, _Tp, _TAllocator>;
 
 // Preliminary size of each chunk: requires further discussion
 constexpr std::size_t __default_chunk_size = 2048;
