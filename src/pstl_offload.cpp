@@ -149,16 +149,16 @@ __internal_free(void* __user_ptr)
 
 #elif _WIN64
 
-static __free_func_type __original_free = free;
+static __free_func_type __original_free_ptr = free;
 #if _DEBUG
-static void (*__original_free_dbg)(void* userData, int blockType) = _free_dbg;
+static void (*__original_free_dbg_ptr)(void* userData, int blockType) = _free_dbg;
 #endif
 static __realloc_func_type __original_realloc_ptr = realloc;
-static __free_func_type __original_aligned_free = _aligned_free;
-static size_t (*__original_msize)(void *) = _msize;
-static size_t (*__original_aligned_msize)(void *, std::size_t alignment, std::size_t offset) = _aligned_msize;
-static void* (*__original_aligned_realloc)(void *, std::size_t size, std::size_t alignment) = _aligned_realloc;
-static void* (*__original_expand)(void *, std::size_t size) = _expand;
+static __free_func_type __original_aligned_free_ptr = _aligned_free;
+static size_t (*__original_msize_ptr)(void *) = _msize;
+static size_t (*__original_aligned_msize_ptr)(void *, std::size_t alignment, std::size_t offset) = _aligned_msize;
+static void* (*__original_aligned_realloc_ptr)(void *, std::size_t size, std::size_t alignment) = _aligned_realloc;
+static void* (*__original_expand_ptr)(void *, std::size_t size) = _expand;
 
 static void
 __internal_free_param(void* __user_ptr, __free_func_type __custom_free)
@@ -181,7 +181,7 @@ __internal_free_param(void* __user_ptr, __free_func_type __custom_free)
 static void
 __internal_free(void* __user_ptr)
 {
-    __internal_free_param(__user_ptr, __original_free);
+    __internal_free_param(__user_ptr, __original_free_ptr);
 }
 
 #endif // _WIN64
@@ -208,7 +208,7 @@ __internal_msize(void* __user_ptr)
     }
     else
     {
-        __res = __original_msize(__user_ptr);
+        __res = __original_msize_ptr(__user_ptr);
     }
     return __res;
 }
@@ -233,7 +233,7 @@ __internal_aligned_msize(void* __user_ptr, std::size_t __alignment, std::size_t 
     }
     else
     {
-        __res = __original_aligned_msize(__user_ptr, __alignment, __offset);
+        __res = __original_aligned_msize_ptr(__user_ptr, __alignment, __offset);
     }
     return __res;
 }
@@ -241,55 +241,7 @@ __internal_aligned_msize(void* __user_ptr, std::size_t __alignment, std::size_t 
 static void
 __internal_aligned_free(void* __user_ptr)
 {
-    __internal_free_param(__user_ptr, __original_aligned_free);
-}
-
-void*
-__aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::size_t __alignment)
-{
-    assert(__user_ptr != nullptr);
-
-    if (!__new_size)
-    {
-        __internal_aligned_free(__user_ptr);
-        return nullptr;
-    }
-
-    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
-
-    void* __result = nullptr;
-
-    if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
-    {
-        if (__header->_M_requested_number_of_bytes == __new_size && (uintptr_t)__user_ptr % __alignment == 0)
-        {
-            __result = __user_ptr;
-        }
-        else
-        {
-            assert(__header->_M_device != nullptr);
-            void* __new_ptr = __allocate_shared_for_device(__header->_M_device, __new_size, __alignment);
-
-            if (__new_ptr != nullptr)
-            {
-                std::memcpy(__new_ptr, __user_ptr, std::min(__header->_M_requested_number_of_bytes, __new_size));
-
-                // Free previously allocated memory
-                __free_usm_pointer(__header);
-                __result = __new_ptr;
-            }
-            else
-            {
-                errno = ENOMEM;
-            }
-        }
-    }
-    else
-    {
-        // __user_ptr is not a USM pointer, use original realloc function
-        __result = __original_aligned_realloc(__user_ptr, __new_size, __alignment);
-    }
-    return __result;
+    __internal_free_param(__user_ptr, __original_aligned_free_ptr);
 }
 
 #if _DEBUG
@@ -307,7 +259,7 @@ __internal_free_dbg(void* __user_ptr, int __type)
         }
         else
         {
-            __original_free_dbg(__user_ptr, __type);
+            __original_free_dbg_ptr(__user_ptr, __type);
         }
     }
 }
@@ -330,6 +282,12 @@ void*
 __original_realloc(void* __user_ptr, std::size_t __new_size)
 {
     return __original_realloc_ptr(__user_ptr, __new_size);
+}
+
+void*
+__original_aligned_realloc(void* __user_ptr, std::size_t __new_size, std::size_t __new_alignment)
+{
+    return __original_aligned_realloc_ptr(__user_ptr, __new_size, __new_alignment);
 }
 
 static void*
@@ -365,7 +323,7 @@ __do_functions_replacement()
     // TODO: rarely-used _aligned_offset_* and _set*_invalid_parameter_handler functions are not supported yet
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmicrosoft-cast"
-    ret = DetourAttach(&(PVOID&)__original_free, __internal_free);
+    ret = DetourAttach(&(PVOID&)__original_free_ptr, __internal_free);
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: free replacement failed with %ld\n", ret);
@@ -373,7 +331,7 @@ __do_functions_replacement()
     }
 #if _DEBUG
     // _free_dbg is called by delete in debug mode
-    ret = DetourAttach(&(PVOID&)__original_free_dbg, __internal_free_dbg);
+    ret = DetourAttach(&(PVOID&)__original_free_dbg_ptr, __internal_free_dbg);
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: _free_dbg replacement failed with %ld\n", ret);
@@ -386,31 +344,31 @@ __do_functions_replacement()
         fprintf(stderr, "Failed function replacement: realloc replacement failed with %ld\n", ret);
         return false;
     }
-    ret = DetourAttach(&(PVOID&)__original_aligned_free, __internal_aligned_free);
+    ret = DetourAttach(&(PVOID&)__original_aligned_free_ptr, __internal_aligned_free);
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: _aligned_free replacement failed with %ld\n", ret);
         return false;
     }
-    ret = DetourAttach(&(PVOID&)__original_msize, __internal_msize);
+    ret = DetourAttach(&(PVOID&)__original_msize_ptr, __internal_msize);
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: _msize replacement failed with %ld\n", ret);
         return false;
     }
-    ret = DetourAttach(&(PVOID&)__original_aligned_msize, __internal_aligned_msize);
+    ret = DetourAttach(&(PVOID&)__original_aligned_msize_ptr, __internal_aligned_msize);
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: _aligned_msize replacement failed with %ld\n", ret);
         return false;
     }
-    ret = DetourAttach(&(PVOID&)__original_aligned_realloc, __internal_aligned_realloc);
+    ret = DetourAttach(&(PVOID&)__original_aligned_realloc_ptr, __internal_aligned_realloc);
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: _aligned_realloc replacement failed with %ld\n", ret);
         return false;
     }
-    ret = DetourAttach(&(PVOID&)__original_expand, __internal_expand);
+    ret = DetourAttach(&(PVOID&)__original_expand_ptr, __internal_expand);
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: _expand replacement failed with %ld\n", ret);

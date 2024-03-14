@@ -90,7 +90,10 @@ int main() {
         ptr = realloc(ptr, size);
         EXPECT_TRUE(sycl::get_pointer_type(ptr, memory_context) == sycl::usm::alloc::shared, "Wrong pointer type while allocating less memory with realloc");
         EXPECT_TRUE(std::strcmp(static_cast<const char*>(ptr), test_string) == 0, "Memory was not copied into new memory while doing realloc");
-        free(ptr);
+        // According to SUS, "If size is 0, either a null pointer or a unique pointer that can be
+        // successfully passed to free() is returned.", but our implementation must return nullptr.
+        ptr = realloc(ptr, 0);
+        EXPECT_TRUE(!ptr , "Non-null returned while releasing memory with realloc");
     }
 #if __linux__
     {

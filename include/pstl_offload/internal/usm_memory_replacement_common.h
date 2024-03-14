@@ -69,10 +69,9 @@ void*
 __original_realloc(void* __user_ptr, std::size_t __new_size);
 void* __original_malloc(std::size_t);
 void*
-__original_aligned_alloc(std::size_t size, std::size_t alignment);
-
+__original_aligned_alloc(std::size_t __size, std::size_t __alignment);
 void*
-__aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::size_t __alignment);
+__original_aligned_realloc(void* __user_ptr, std::size_t __size, std::size_t __alignment);
 
 #endif
 
@@ -146,6 +145,12 @@ __realloc_real_pointer(void* __user_ptr, std::size_t __new_size)
     assert(__user_ptr != nullptr);
     __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
 
+    if (!__new_size)
+    {
+        free(__user_ptr);
+        return nullptr;
+    }
+
     void* __result = nullptr;
 
     if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
@@ -190,6 +195,54 @@ __internal_realloc(void* __user_ptr, std::size_t __new_size)
 }
 
 #if _WIN64
+
+inline void*
+__aligned_realloc_real_pointer(void* __user_ptr, std::size_t __new_size, std::size_t __alignment)
+{
+    assert(__user_ptr != nullptr);
+
+    if (!__new_size)
+    {
+        _aligned_free(__user_ptr);
+        return nullptr;
+    }
+
+    __block_header* __header = static_cast<__block_header*>(__user_ptr) - 1;
+
+    void* __result = nullptr;
+
+    if (__same_memory_page(__user_ptr, __header) && __header->_M_uniq_const == __uniq_type_const)
+    {
+        if (__header->_M_requested_number_of_bytes == __new_size && (uintptr_t)__user_ptr % __alignment == 0)
+        {
+            __result = __user_ptr;
+        }
+        else
+        {
+            assert(__header->_M_device != nullptr);
+            void* __new_ptr = __allocate_shared_for_device(__header->_M_device, __new_size, __alignment);
+
+            if (__new_ptr != nullptr)
+            {
+                std::memcpy(__new_ptr, __user_ptr, std::min(__header->_M_requested_number_of_bytes, __new_size));
+
+                // Free previously allocated memory
+                __free_usm_pointer(__header);
+                __result = __new_ptr;
+            }
+            else
+            {
+                errno = ENOMEM;
+            }
+        }
+    }
+    else
+    {
+        // __user_ptr is not a USM pointer, use original realloc function
+        __result = __original_aligned_realloc(__user_ptr, __new_size, __alignment);
+    }
+    return __result;
+}
 
 static void*
 __internal_aligned_realloc(void* __user_ptr, std::size_t __new_size, std::size_t __alignment)
