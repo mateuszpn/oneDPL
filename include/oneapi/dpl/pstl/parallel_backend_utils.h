@@ -44,6 +44,15 @@ class __buffer_impl
 
         __buffer_data(std::size_t __n) : __allocator_(), __allocated_mem(__allocator_.allocate(__n)), __buf_size_(__n)
         {
+            // As described at https://en.cppreference.com/w/cpp/memory/allocator/allocate
+            // the exceptions may be throwed from the std::allocator<T>::allocate call :
+            //  - throws std::bad_array_new_length if std::numeric_limits<std::size_t>::max() / sizeof(T) < n.
+            //  - throws std::bad_alloc if allocation fails.
+
+            // So the initialization order shoud be exactly like here:
+            // 1. Initialize allocator.
+            // 2. Allocate memory.
+            // 3. Save buffer size.
         }
     };
     struct __buffer_data_custom_deleter
