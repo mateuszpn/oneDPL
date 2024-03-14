@@ -155,7 +155,7 @@ static void (*__original_free_dbg_ptr)(void* userData, int blockType) = _free_db
 #endif
 static __realloc_func_type __original_realloc_ptr = realloc;
 static __free_func_type __original_aligned_free_ptr = _aligned_free;
-static size_t (*__original_msize_ptr)(void *) = _msize;
+static size_t (*__original_msize)(void *) = _msize;
 static size_t (*__original_aligned_msize_ptr)(void *, std::size_t alignment, std::size_t offset) = _aligned_msize;
 static void* (*__original_aligned_realloc_ptr)(void *, std::size_t size, std::size_t alignment) = _aligned_realloc;
 static void* (*__original_expand_ptr)(void *, std::size_t size) = _expand;
@@ -208,7 +208,7 @@ __internal_msize(void* __user_ptr)
     }
     else
     {
-        __res = __original_msize_ptr(__user_ptr);
+        __res = __original_msize(__user_ptr);
     }
     return __res;
 }
@@ -350,7 +350,7 @@ __do_functions_replacement()
         fprintf(stderr, "Failed function replacement: _aligned_free replacement failed with %ld\n", ret);
         return false;
     }
-    ret = DetourAttach(&(PVOID&)__original_msize_ptr, __internal_msize);
+    ret = DetourAttach(&(PVOID&)__original_msize, __internal_msize);
     if (NO_ERROR != ret)
     {
         fprintf(stderr, "Failed function replacement: _msize replacement failed with %ld\n", ret);

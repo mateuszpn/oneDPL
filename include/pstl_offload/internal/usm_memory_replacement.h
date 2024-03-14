@@ -372,13 +372,15 @@ operator new[](std::size_t __size, std::align_val_t __al)
 inline void* __attribute__((always_inline))
 operator new(std::size_t __size, std::align_val_t __al, const std::nothrow_t&) noexcept
 {
-    return ::__pstl_offload::__internal_operator_new(__size, std::size_t(__al), /*__ext_alignment_requested=*/true, std::nothrow);
+    return ::__pstl_offload::__internal_operator_new(__size, std::size_t(__al), /*__ext_alignment_requested=*/true,
+                                                     std::nothrow);
 }
 
 inline void* __attribute__((always_inline))
 operator new[](std::size_t __size, std::align_val_t __al, const std::nothrow_t&) noexcept
 {
-    return ::__pstl_offload::__internal_operator_new(__size, std::size_t(__al), /*__ext_alignment_requested=*/true, std::nothrow);
+    return ::__pstl_offload::__internal_operator_new(__size, std::size_t(__al), /*__ext_alignment_requested=*/true,
+                                                     std::nothrow);
 }
 
 #pragma GCC diagnostic pop
