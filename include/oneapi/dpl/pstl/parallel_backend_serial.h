@@ -25,58 +25,17 @@
 #include <utility>
 #include <type_traits>
 
+#include "parallel_backend_utils.h"
+
 namespace oneapi
 {
 namespace dpl
 {
 namespace __serial_backend
 {
-
-template <typename _ExecutionPolicy, typename _Tp,
-          template <typename _Tp> typename _TAllocator>
-class __buffer_impl
-{
-    struct __buffer_data
-    {
-        _TAllocator<_Tp> __allocator_;
-        _Tp* __allocated_mem = nullptr;
-        const ::std::size_t __buf_size_ = 0;
-
-        __buffer_data(std::size_t __n) : __allocator_(), __allocated_mem(__allocator_.allocate(__n)), __buf_size_(__n)
-        {
-        }
-    };
-    struct __buffer_data_custom_deleter
-    {
-        void
-        operator()(__buffer_data* pData)
-        {
-            if (pData != nullptr)
-                pData->__allocator_.deallocate(pData->__allocated_mem, __ptr_->__buf_size_);
-        }
-    };
-    using __data_ptr_t = ::std::unique_ptr<__buffer_data, __buffer_data_custom_deleter>;
-    __data_ptr_t __ptr;
-
-  public:
-    static_assert(::std::is_same_v<_ExecutionPolicy, ::std::decay_t<_ExecutionPolicy>>);
-
-    __buffer_impl(_ExecutionPolicy /*__exec*/, ::std::size_t __n) : __ptr(::std::make_unique(__n))
-    {
-    }
-
-    _Tp*
-    get() const
-    {
-        return __ptr_->__allocated_mem;
-    }
-
-    operator bool() const { return get() != nullptr; }
-};
-
 template <typename _ExecutionPolicy, typename _Tp,
           template <typename _Tp> typename _TAllocator = ::std::allocator<_Tp>>
-using __buffer = __buffer_impl<::std::decay_t<_ExecutionPolicy>, _Tp, _TAllocator>;
+using __buffer = oneapi::dpl::__utils::__buffer_impl<::std::decay_t<_ExecutionPolicy>, _Tp, _TAllocator>;
 
 inline void
 __cancel_execution(oneapi::dpl::__internal::__serial_backend_tag)
