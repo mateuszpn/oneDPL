@@ -56,8 +56,7 @@ __cancel_execution(oneapi::dpl::__internal::__omp_backend_tag)
 //------------------------------------------------------------------------
 // raw buffer
 //------------------------------------------------------------------------
-template <typename _ExecutionPolicy, typename _Tp,
-          template <typename _Tp> typename _TAllocator = ::std::allocator<_Tp>>
+template <typename _ExecutionPolicy, typename _Tp, template <typename _T> typename _TAllocator = ::std::allocator<_Tp>>
 using __buffer = oneapi::dpl::__utils::__buffer_impl<::std::decay_t<_ExecutionPolicy>, _Tp, _TAllocator>;
 
 // Preliminary size of each chunk: requires further discussion

@@ -33,7 +33,7 @@ namespace __utils
 // raw buffer (with specified _TAllocator)
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _Tp, template <typename _Tp> typename _TAllocator>
+template <typename _ExecutionPolicy, typename _Tp, template <typename _T> typename _TAllocator>
 class __buffer_impl
 {
     struct __buffer_data
@@ -61,7 +61,7 @@ class __buffer_impl
         operator()(__buffer_data* pData)
         {
             if (pData != nullptr)
-                pData->__allocator_.deallocate(pData->__allocated_mem, __ptr_->__buf_size_);
+                pData->__allocator_.deallocate(pData->__allocated_mem, pData->__buf_size_);
         }
     };
     using __data_ptr_t = ::std::unique_ptr<__buffer_data, __buffer_data_custom_deleter>;
@@ -70,12 +70,15 @@ class __buffer_impl
   public:
     static_assert(::std::is_same_v<_ExecutionPolicy, ::std::decay_t<_ExecutionPolicy>>);
 
-    __buffer_impl(_ExecutionPolicy /*__exec*/, ::std::size_t __n) : __ptr(::std::make_unique(__n)) {}
+    __buffer_impl(_ExecutionPolicy /*__exec*/, ::std::size_t __n)
+        : __ptr(::std::make_unique<__buffer_data, __buffer_data_custom_deleter>(__n))
+    {
+    }
 
     _Tp*
     get() const
     {
-        return __ptr_->__allocated_mem;
+        return __ptr->__allocated_mem;
     }
 
     operator bool() const { return get() != nullptr; }

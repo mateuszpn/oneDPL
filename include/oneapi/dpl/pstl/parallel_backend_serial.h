@@ -33,8 +33,7 @@ namespace dpl
 {
 namespace __serial_backend
 {
-template <typename _ExecutionPolicy, typename _Tp,
-          template <typename _Tp> typename _TAllocator = ::std::allocator<_Tp>>
+template <typename _ExecutionPolicy, typename _Tp, template <typename _T> typename _TAllocator = ::std::allocator<_T>>
 using __buffer = oneapi::dpl::__utils::__buffer_impl<::std::decay_t<_ExecutionPolicy>, _Tp, _TAllocator>;
 
 inline void
